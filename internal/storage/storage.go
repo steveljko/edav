@@ -35,6 +35,12 @@ func dsn(path string) string {
 	pragmas := url.Values{}
 	pragmas.Add("_pragma", "foreign_keys(1)")
 	pragmas.Add("_pragma", "busy_timeout(5000)")
+	// Every transaction here reads before it writes. Left deferred, the write
+	// upgrade fails with SQLITE_BUSY the moment another connection has written
+	// since the read began, and busy_timeout cannot wait that out because the
+	// snapshot is already stale. Taking the write lock up front turns the race
+	// into a wait.
+	pragmas.Add("_txlock", "immediate")
 	if path != ":memory:" {
 		// WAL survives across connections and is meaningless for in-memory
 		// databases, which the driver rejects.
