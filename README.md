@@ -8,8 +8,9 @@ There is nothing to install alongside it — no PHP, no separate database server
 
 ## Status
 
-Early. Currently loads its configuration, migrates the database and serves
-`GET /healthz`. No DAV endpoints yet.
+Early. Loads its configuration, migrates the database, seeds the admin account
+and serves `GET /healthz`. Password hashing, Basic auth for DAV clients and
+admin cookie sessions are in place. No DAV endpoints or admin UI yet.
 
 ## Running
 
@@ -34,3 +35,4 @@ server refuses to start rather than failing at the first request.
 | `EDAV_CALDAV_ENABLED` | `true` | Serve calendars |
 | `EDAV_CARDDAV_ENABLED` | `true` | Serve address books |
 | `EDAV_WEBDAV_ENABLED` | `false` | Serve plain WebDAV |
+| `EDAV_SECURE_COOKIES` | `true` | Secure attribute on the admin session cookie; set `false` only for local plain-HTTP development |
