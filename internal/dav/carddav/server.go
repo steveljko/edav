@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"path"
@@ -35,7 +36,7 @@ type Backend interface {
 	GetAddressObject(ctx context.Context, path string, req *AddressDataRequest) (*AddressObject, error)
 	ListAddressObjects(ctx context.Context, path string, req *AddressDataRequest) ([]AddressObject, error)
 	QueryAddressObjects(ctx context.Context, path string, query *AddressBookQuery) ([]AddressObject, error)
-	PutAddressObject(ctx context.Context, path string, card vcard.Card, opts *PutAddressObjectOptions) (*AddressObject, error)
+	PutAddressObject(ctx context.Context, path string, raw []byte, opts *PutAddressObjectOptions) (*AddressObject, error)
 	DeleteAddressObject(ctx context.Context, path string) error
 
 	webdav.UserPrincipalBackend
@@ -327,7 +328,8 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if r.Method != http.MethodHead {
-		return vcard.NewEncoder(w).Encode(ao.Card)
+		_, err := w.Write(ao.Raw)
+		return err
 	}
 	return nil
 }
@@ -563,6 +565,9 @@ func (b *backend) propFindAddressObject(ctx context.Context, propfind *internal.
 		}),
 		// TODO: address-data can only be used in REPORT requests
 		addressDataName: func(*internal.RawXMLValue) (interface{}, error) {
+			if ao.Raw != nil {
+				return &addressDataResp{Data: ao.Raw}, nil
+			}
 			var buf bytes.Buffer
 			if err := vcard.NewEncoder(&buf).Encode(ao.Card); err != nil {
 				return nil, err
@@ -668,15 +673,20 @@ func (b *backend) Put(w http.ResponseWriter, r *http.Request) error {
 		return internal.HTTPErrorf(http.StatusBadRequest, "carddav: unsupporetd Content-Type %q", t)
 	}
 
-	// TODO: check CARDDAV:max-resource-size precondition
-	card, err := vcard.NewDecoder(r.Body).Decode()
+	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, MaxResourceSize))
 	if err != nil {
+		return internal.HTTPErrorf(http.StatusRequestEntityTooLarge, "carddav: request body too large: %v", err)
+	}
+
+	// Parsed only to reject malformed input; the bytes are stored as they
+	// arrived so that properties this parser does not model survive.
+	if _, err := vcard.NewDecoder(bytes.NewReader(raw)).Decode(); err != nil {
 		// TODO: send CARDDAV:valid-address-data error
 		return internal.HTTPErrorf(http.StatusBadRequest, "carddav: failed to parse vCard: %v", err)
 	}
 
 	// TODO: add support for the CARDDAV:no-uid-conflict error
-	ao, err := b.Backend.PutAddressObject(r.Context(), r.URL.Path, card, &opts)
+	ao, err := b.Backend.PutAddressObject(r.Context(), r.URL.Path, raw, &opts)
 	if err != nil {
 		return err
 	}

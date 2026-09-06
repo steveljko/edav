@@ -106,8 +106,22 @@ type AddressObject struct {
 	ModTime       time.Time
 	ContentLength int64
 	ETag          string
-	Card          vcard.Card
+
+	// Raw is the vCard exactly as the client stored it, and is what GET and an
+	// unrestricted address-data response return. Backends must set it.
+	Raw []byte
+
+	// Card is a parsed view of Raw, needed only to evaluate filters and
+	// property restrictions. Backends may leave it nil when the request needs
+	// neither. A response built from a reduced Card carries no Raw, since it no
+	// longer represents the stored bytes.
+	Card vcard.Card
 }
+
+// MaxResourceSize caps the size of a single vCard accepted by PUT. RFC 6352
+// leaves the limit to the server; this is generous for a contact card while
+// keeping a malicious client from streaming an unbounded body into memory.
+const MaxResourceSize = 1 << 20
 
 // SyncQuery is the query struct represents a sync-collection request
 type SyncQuery struct {

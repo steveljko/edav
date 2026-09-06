@@ -110,7 +110,7 @@ func (*testBackend) QueryAddressObjects(ctx context.Context, path string, query 
 	panic("TODO: implement")
 }
 
-func (*testBackend) PutAddressObject(ctx context.Context, path string, card vcard.Card, opts *PutAddressObjectOptions) (*AddressObject, error) {
+func (*testBackend) PutAddressObject(ctx context.Context, path string, raw []byte, opts *PutAddressObjectOptions) (*AddressObject, error) {
 	panic("TODO: implement")
 }
 
