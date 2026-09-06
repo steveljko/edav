@@ -13,9 +13,12 @@ PUT/GET/DELETE, multiget, property and time-range queries, principal discovery
 and the well-known redirects. Recurring events are expanded with EXDATE,
 RDATE and RECURRENCE-ID overrides, honouring embedded VTIMEZONE definitions.
 
-Not yet built: `sync-collection` (clients fall back to ctag polling), the admin
-UI, and scheduling (RFC 6638 invitations and free/busy), which is out of scope
-for v1. Collections are created by a client rather than through a UI.
+Incremental synchronisation works through `sync-collection`, including
+reporting deletions to a client whose token predates them.
+
+Not yet built: the admin UI, and scheduling (RFC 6638 invitations and
+free/busy), which is out of scope for v1. Collections are created by a client
+rather than through a UI.
 
 ## Running
 
