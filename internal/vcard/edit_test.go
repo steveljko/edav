@@ -389,3 +389,57 @@ func isValidUTF8(b []byte) bool {
 	}
 	return true
 }
+
+// A grouped property and its label are one unit. Removing the property while
+// leaving "item1.X-ABLabel" behind would leave a label for nothing.
+func TestRemovingAGroupedPropertyRemovesItsLabel(t *testing.T) {
+	v := parseOrFail(t, appleCard)
+	v.Set("URL", "")
+
+	got := string(v.Bytes())
+	if strings.Contains(got, "item2.URL") {
+		t.Errorf("URL was not removed:\n%s", got)
+	}
+	if strings.Contains(got, "item2.X-ABLabel") {
+		t.Errorf("the label of the removed property was orphaned:\n%s", got)
+	}
+	// A different group must be untouched.
+	if !strings.Contains(got, "item1.X-ABADR:gb\r\n") {
+		t.Errorf("an unrelated group was removed:\n%s", got)
+	}
+}
+
+// Setting the type a property already carries must not discard the others.
+func TestSetAllKeepsAdditionalTypeParameters(t *testing.T) {
+	v := parseOrFail(t, appleCard)
+	v.SetAll("EMAIL", []Property{{Value: "ada@example.org", Type: "home"}})
+
+	got := string(v.Bytes())
+	if !strings.Contains(got, "EMAIL;type=INTERNET;type=HOME;type=pref:ada@example.org\r\n") {
+		t.Errorf("editing the value discarded the other type parameters:\n%s", got)
+	}
+}
+
+func TestSetAllReplacesParametersOnlyForARealTypeChange(t *testing.T) {
+	v := parseOrFail(t, appleCard)
+	v.SetAll("EMAIL", []Property{{Value: "ada@example.com", Type: "work"}})
+
+	got := string(v.Bytes())
+	if !strings.Contains(got, "EMAIL;TYPE=WORK:ada@example.com\r\n") {
+		t.Errorf("a genuine type change was not applied:\n%s", got)
+	}
+}
+
+// A form shows the category a person recognises, not the transport hint that
+// happens to come first.
+func TestTypeParamPrefersAKnownCategory(t *testing.T) {
+	v := parseOrFail(t, appleCard)
+
+	emails := v.Values("EMAIL")
+	if len(emails) != 1 {
+		t.Fatalf("EMAIL count = %d", len(emails))
+	}
+	if emails[0].Type != "home" {
+		t.Errorf("Type = %q, want home rather than internet", emails[0].Type)
+	}
+}

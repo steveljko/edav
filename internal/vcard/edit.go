@@ -85,6 +85,29 @@ func (v *Card) Set(name, value string) {
 	}
 }
 
+// SetRaw is Set for a structured value whose components the caller has already
+// escaped, such as N or ADR. The separating semicolons must reach the card
+// unescaped, which Set would not allow.
+func (v *Card) SetRaw(name, value string) {
+	name = strings.ToUpper(name)
+
+	for i := range v.c.lines {
+		if v.c.lines[i].name != name {
+			continue
+		}
+		if value == "" {
+			v.c.remove(i)
+			return
+		}
+		v.c.lines[i].value = value
+		v.c.lines[i].dirty = true
+		return
+	}
+	if value != "" {
+		v.c.insert(line{name: name, value: value, added: true})
+	}
+}
+
 // SetAll replaces every occurrence of a repeatable property. Occurrences are
 // matched to the existing lines in order, so editing one phone number rewrites
 // only that line and leaves the others, with whatever parameters and grouping
@@ -112,11 +135,17 @@ func (v *Card) SetAll(name string, values []Property) {
 
 		at := existing[i]
 		l := &v.c.lines[at]
-		if unescape(l.value) == want.Value && typeParam(l.params) == want.Type {
+
+		sameValue := unescape(l.value) == want.Value
+		sameType := hasType(l.params, want.Type)
+		if sameValue && sameType {
 			continue // Unchanged: leave the original bytes in place.
 		}
+
 		l.value = escape(want.Value)
-		if typeParam(l.params) != want.Type {
+		if !sameType {
+			// Only a genuinely different type replaces the parameters, so the
+			// ones a client set alongside it are not lost to a no-op edit.
 			l.params = typeParams(want.Type)
 		}
 		l.dirty = true
@@ -153,8 +182,24 @@ func (c *card) has(name string) bool {
 	return false
 }
 
+// remove drops a line and, when it belongs to a group, the other lines of that
+// group with it. A group binds a property to its satellites -- Apple writes
+// "item1.URL" alongside "item1.X-ABLabel" -- and leaving the label behind
+// without the property it labels corrupts the card.
 func (c *card) remove(i int) {
-	c.lines = append(c.lines[:i], c.lines[i+1:]...)
+	group := c.lines[i].group
+	if group == "" {
+		c.lines = append(c.lines[:i], c.lines[i+1:]...)
+		return
+	}
+
+	kept := c.lines[:0]
+	for _, l := range c.lines {
+		if l.group != group {
+			kept = append(kept, l)
+		}
+	}
+	c.lines = kept
 }
 
 // insert places a new line before END:VCARD, so the card stays well formed.
@@ -170,14 +215,52 @@ func (c *card) insert(l line) {
 	c.lines = append(c.lines, l)
 }
 
-func typeParam(params string) string {
+// typeValues returns every TYPE parameter on a line. A property routinely
+// carries several -- "TYPE=INTERNET;TYPE=HOME;TYPE=pref" -- and treating only
+// the first as the type throws the rest away on the next save.
+func typeValues(params string) []string {
+	var out []string
 	for _, part := range strings.Split(strings.TrimPrefix(params, ";"), ";") {
 		name, value, ok := strings.Cut(part, "=")
-		if ok && strings.EqualFold(name, "TYPE") {
-			return strings.ToLower(strings.Trim(value, `"`))
+		if !ok || !strings.EqualFold(name, "TYPE") {
+			continue
+		}
+		for _, v := range strings.Split(value, ",") {
+			out = append(out, strings.ToLower(strings.Trim(v, `"`)))
 		}
 	}
+	return out
+}
+
+// typeParam is the one type worth showing in a form: the first that a person
+// would recognise as a category, rather than a transport hint like INTERNET.
+func typeParam(params string) string {
+	values := typeValues(params)
+	for _, v := range values {
+		for _, known := range TypeOptions {
+			if v == known {
+				return v
+			}
+		}
+	}
+	if len(values) > 0 {
+		return values[0]
+	}
 	return ""
+}
+
+// hasType reports whether a line already carries this type, in which case its
+// parameters are left as they are.
+func hasType(params, want string) bool {
+	if want == "" {
+		return true
+	}
+	for _, v := range typeValues(params) {
+		if v == want {
+			return true
+		}
+	}
+	return false
 }
 
 func typeParams(typ string) string {
