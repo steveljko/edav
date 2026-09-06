@@ -15,6 +15,7 @@ import (
 	// zoneinfo of its own.
 	_ "time/tzdata"
 
+	"github.com/steveljko/edav/internal/admin"
 	"github.com/steveljko/edav/internal/auth"
 	"github.com/steveljko/edav/internal/config"
 	"github.com/steveljko/edav/internal/dav"
@@ -58,9 +59,14 @@ func run(cfg *config.Config) error {
 	}
 	go sweepSessions(ctx, db)
 
+	handler, err := newMux(db, cfg)
+	if err != nil {
+		return err
+	}
+
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           newMux(db, cfg),
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -121,7 +127,7 @@ func sweepSessions(ctx context.Context, db *sql.DB) {
 	}
 }
 
-func newMux(db *sql.DB, cfg *config.Config) *http.ServeMux {
+func newMux(db *sql.DB, cfg *config.Config) (*http.ServeMux, error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthz(db))
 
@@ -133,7 +139,27 @@ func newMux(db *sql.DB, cfg *config.Config) *http.ServeMux {
 			CalDAVEnabled:  cfg.CalDAVEnabled,
 		}).Register(mux)
 	}
-	return mux
+
+	sessions := &auth.Sessions{DB: db, Secure: cfg.SecureCookies, Path: "/admin"}
+	adminServer := &admin.Server{
+		DB:             db,
+		Sessions:       sessions,
+		BaseURL:        cfg.BaseURL,
+		DAVPrefix:      davPrefix,
+		CalDAVEnabled:  cfg.CalDAVEnabled,
+		CardDAVEnabled: cfg.CardDAVEnabled,
+	}
+	if err := adminServer.Register(mux); err != nil {
+		return nil, err
+	}
+
+	// A browser opening the bare host should land on the admin interface;
+	// nothing else answers there.
+	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/admin/", http.StatusFound)
+	})
+
+	return mux, nil
 }
 
 func healthz(db *sql.DB) http.HandlerFunc {

@@ -35,7 +35,10 @@ func TestMuxRoutes(t *testing.T) {
 		{"unknown path", http.MethodGet, "/nope", http.StatusNotFound, ""},
 	}
 
-	mux := newMux(testDB(t), &config.Config{})
+	mux, err := newMux(testDB(t), &config.Config{})
+	if err != nil {
+		t.Fatalf("newMux() = %v", err)
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
@@ -55,8 +58,13 @@ func TestHealthzReportsClosedDatabase(t *testing.T) {
 	db := testDB(t)
 	db.Close()
 
+	mux, err := newMux(db, &config.Config{})
+	if err != nil {
+		t.Fatalf("newMux() = %v", err)
+	}
+
 	rec := httptest.NewRecorder()
-	newMux(db, &config.Config{}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusServiceUnavailable)
