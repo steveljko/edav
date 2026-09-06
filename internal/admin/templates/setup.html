@@ -1,0 +1,73 @@
+{{define "content"}}
+<h1>Client setup</h1>
+<p class="lede">The exact addresses to paste into each client.</p>
+
+{{if .Insecure}}
+<p class="notice error">This server is reachable over plain HTTP. Basic authentication sends the
+password on every request, so put it behind TLS before using it over an untrusted network.</p>
+{{end}}
+
+<h2>Server address</h2>
+<div class="card">
+	<pre class="url">{{.BaseURL}}</pre>
+	<p class="muted">Sign in with the account's own username and password.
+	{{if not .HasBaseURL}}Set <code>EDAV_BASE_URL</code> so this page shows the address your clients
+	actually reach, rather than the one this request happened to arrive on.{{end}}</p>
+</div>
+
+<h2>Per client</h2>
+<div class="card">
+	<dl class="setup">
+		<dt>iOS and macOS — Calendar, Contacts</dt>
+		<dd>Settings → Calendar (or Contacts) → Accounts → Add Account → Other →
+			Add CalDAV (or CardDAV) Account. Server: <code>{{.Host}}</code>.
+			Discovery goes through <code>/.well-known/caldav</code>, which this server answers
+			without asking for credentials first, so leave the path off.</dd>
+
+		<dt>DAVx⁵ (Android)</dt>
+		<dd>Add account → Login with URL and user name. Base URL: <code>{{.BaseURL}}</code>.
+			It finds both calendars and address books from one login.</dd>
+
+		<dt>Thunderbird</dt>
+		<dd>Calendar: New Calendar → On the Network → CalDAV, location <code>{{.CalendarHome}}</code>.
+			Address book: New CardDAV Address Book, location <code>{{.AddressBookHome}}</code>.</dd>
+
+		<dt>Evolution, eM Client, and others</dt>
+		<dd>Where a client asks for a full collection URL rather than discovering it, use the
+			home set addresses below and pick a collection from the list it offers.</dd>
+	</dl>
+</div>
+
+<h2>Direct addresses{{if .Subject}} for {{.Subject.Username}}{{end}}</h2>
+<div class="card">
+	<dl class="setup">
+		<dt>Well-known discovery</dt>
+		<dd><pre class="url">{{.BaseURL}}/.well-known/caldav
+{{.BaseURL}}/.well-known/carddav</pre></dd>
+
+		<dt>Principal</dt>
+		<dd><pre class="url">{{.BaseURL}}{{.Principal}}</pre></dd>
+
+		<dt>Calendar home</dt>
+		<dd><pre class="url">{{.BaseURL}}{{.CalendarHomePath}}</pre></dd>
+
+		<dt>Address book home</dt>
+		<dd><pre class="url">{{.BaseURL}}{{.AddressBookHomePath}}</pre></dd>
+	</dl>
+	<p class="muted">Paths shown for <strong>{{.PathUser}}</strong>. Every user has their own tree;
+		substitute the username to get another account's addresses.</p>
+</div>
+
+<h2>Status</h2>
+<div class="card">
+	<table>
+		<tbody>
+			<tr><th>CalDAV</th><td>{{if .CalDAVEnabled}}Enabled{{else}}Disabled{{end}}</td></tr>
+			<tr><th>CardDAV</th><td>{{if .CardDAVEnabled}}Enabled{{else}}Disabled{{end}}</td></tr>
+			<tr><th>Users</th><td>{{.UserCount}}</td></tr>
+			<tr><th>Collections</th><td>{{.CalendarCount}} calendars, {{.AddressBookCount}} address books</td></tr>
+			<tr><th>Objects</th><td>{{.ObjectCount}}</td></tr>
+		</tbody>
+	</table>
+</div>
+{{end}}

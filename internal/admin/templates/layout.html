@@ -1,0 +1,32 @@
+{{define "layout"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} — edav</title>
+<link rel="stylesheet" href="/admin/static/style.css">
+<script src="/admin/static/htmx.min.js" defer></script>
+</head>
+<body>
+{{if .User}}
+<header class="site">
+	<div class="inner">
+		<span class="brand">edav</span>
+		<nav>
+			<a href="/admin/"{{if eq .Nav "users"}} aria-current="page"{{end}}>Users</a>
+			<a href="/admin/setup"{{if eq .Nav "setup"}} aria-current="page"{{end}}>Client setup</a>
+		</nav>
+		<form method="post" action="/admin/logout">
+			<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+			<button class="link">Sign out {{.User.Username}}</button>
+		</form>
+	</div>
+</header>
+{{end}}
+<main>
+{{if .Error}}<p class="notice error">{{.Error}}</p>{{end}}
+{{if .Message}}<p class="notice ok">{{.Message}}</p>{{end}}
+{{template "content" .}}
+</main>
+</body>
+</html>{{end}}

@@ -1,0 +1,50 @@
+{{define "content"}}
+<h1>Users</h1>
+<p class="lede">Accounts that can sign in to a DAV client.</p>
+
+<div class="card">
+	<table>
+		<thead><tr><th>Username</th><th>Name</th><th>Email</th><th>Collections</th><th></th></tr></thead>
+		<tbody>
+		{{range .Users}}
+			<tr>
+				<td><a href="/admin/users/{{.User.ID}}">{{.User.Username}}</a>
+					{{if .User.IsAdmin}}<span class="badge">admin</span>{{end}}</td>
+				<td>{{if .User.DisplayName}}{{.User.DisplayName}}{{else}}<span class="muted">—</span>{{end}}</td>
+				<td>{{if .User.Email}}{{.User.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
+				<td class="muted">{{.Calendars}} calendars, {{.AddressBooks}} address books</td>
+				<td class="actions"><a class="button" href="/admin/users/{{.User.ID}}">Edit</a></td>
+			</tr>
+		{{else}}
+			<tr><td colspan="5" class="empty">No users yet.</td></tr>
+		{{end}}
+		</tbody>
+	</table>
+</div>
+
+<h2>Add a user</h2>
+<form method="post" action="/admin/users" class="card">
+	<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+	<div class="row">
+		<div class="field">
+			<label for="new-username">Username</label>
+			<input type="text" id="new-username" name="username" value="{{.Form.Username}}" required>
+		</div>
+		<div class="field">
+			<label for="new-display">Display name</label>
+			<input type="text" id="new-display" name="display_name" value="{{.Form.DisplayName}}">
+		</div>
+	</div>
+	<div class="row">
+		<div class="field">
+			<label for="new-email">Email</label>
+			<input type="email" id="new-email" name="email" value="{{.Form.Email}}">
+		</div>
+		<div class="field">
+			<label for="new-password">Password</label>
+			<input type="password" id="new-password" name="password" autocomplete="new-password" required>
+		</div>
+	</div>
+	<button type="submit" class="primary">Create user</button>
+</form>
+{{end}}

@@ -1,0 +1,13 @@
+{{define "content"}}
+<div class="login">
+	<h1>{{.Confirm.Title}}</h1>
+	<div class="card">
+		<p>{{.Confirm.Body}}</p>
+		<form method="post" action="{{.Confirm.Action}}" class="stack">
+			<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+			<button type="submit" class="danger">{{.Confirm.Verb}}</button>
+			<a class="button" href="{{.Confirm.Cancel}}">Cancel</a>
+		</form>
+	</div>
+</div>
+{{end}}

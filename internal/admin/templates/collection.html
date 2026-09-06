@@ -1,0 +1,43 @@
+{{define "content"}}
+<h1>{{if .Collection.DisplayName}}{{.Collection.DisplayName}}{{else}}{{.Collection.URI}}{{end}}</h1>
+<p class="lede"><a href="/admin/users/{{.Subject.ID}}">{{.Subject.Username}}</a> ·
+	{{if eq .Collection.Type "calendar"}}Calendar{{else}}Address book{{end}} ·
+	{{.ObjectCount}} object{{if ne .ObjectCount 1}}s{{end}}</p>
+
+<form method="post" action="/admin/collections/{{.Collection.ID}}" class="card">
+	<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+	<div class="row">
+		<div class="field">
+			<label for="display_name">Display name</label>
+			<input type="text" id="display_name" name="display_name" value="{{.Collection.DisplayName}}">
+		</div>
+		<div class="field">
+			<label for="color">Colour</label>
+			<input type="color" id="color" name="color" value="{{.ColorValue}}">
+		</div>
+	</div>
+	<div class="field">
+		<label for="description">Description</label>
+		<textarea id="description" name="description">{{.Collection.Description}}</textarea>
+	</div>
+	<button type="submit" class="primary">Save changes</button>
+</form>
+
+<h2>Address for clients</h2>
+<div class="card">
+	<pre class="url">{{.CollectionURL}}</pre>
+	<p class="muted">Most clients only need the server address from
+		<a href="/admin/setup">Client setup</a>; this is the direct link.</p>
+</div>
+
+<h2>Delete collection</h2>
+<div class="card">
+	<p class="muted">Removes this collection and all {{.ObjectCount}} object{{if ne .ObjectCount 1}}s{{end}} in it. This cannot be undone.</p>
+	<form method="post" action="/admin/collections/{{.Collection.ID}}/delete">
+		<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+		<button class="danger" hx-post="/admin/collections/{{.Collection.ID}}/delete"
+		        hx-confirm="Delete this collection and its {{.ObjectCount}} object{{if ne .ObjectCount 1}}s{{end}}?">Delete this collection</button>
+	</form>
+	<p class="muted"><a href="/admin/collections/{{.Collection.ID}}/delete">Confirm without JavaScript</a></p>
+</div>
+{{end}}

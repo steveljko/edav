@@ -1,0 +1,103 @@
+{{define "content"}}
+<h1>{{.Subject.Username}}</h1>
+<p class="lede"><a href="/admin/">All users</a></p>
+
+<h2>Details</h2>
+<form method="post" action="/admin/users/{{.Subject.ID}}" class="card">
+	<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+	<div class="row">
+		<div class="field">
+			<label for="username">Username</label>
+			<input type="text" id="username" name="username" value="{{.Subject.Username}}" required>
+		</div>
+		<div class="field">
+			<label for="display_name">Display name</label>
+			<input type="text" id="display_name" name="display_name" value="{{.Subject.DisplayName}}">
+		</div>
+	</div>
+	<div class="row">
+		<div class="field">
+			<label for="email">Email</label>
+			<input type="email" id="email" name="email" value="{{.Subject.Email}}">
+		</div>
+		<div class="field">
+			<label for="is_admin">Administrator</label>
+			<select id="is_admin" name="is_admin"{{if .IsSelf}} disabled{{end}}>
+				<option value="0"{{if not .Subject.IsAdmin}} selected{{end}}>No</option>
+				<option value="1"{{if .Subject.IsAdmin}} selected{{end}}>Yes</option>
+			</select>
+			{{if .IsSelf}}<p class="muted">You cannot remove your own administrator access.</p>{{end}}
+		</div>
+	</div>
+	<button type="submit" class="primary">Save changes</button>
+</form>
+
+<h2>Reset password</h2>
+<form method="post" action="/admin/users/{{.Subject.ID}}/password" class="card">
+	<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+	<div class="field">
+		<label for="password">New password</label>
+		<input type="password" id="password" name="password" autocomplete="new-password" required>
+	</div>
+	<p class="muted">Signing this user out of the admin interface everywhere. DAV clients will need the new password on their next sync.</p>
+	<button type="submit">Set password</button>
+</form>
+
+<h2>Collections</h2>
+<div class="card">
+	<table>
+		<thead><tr><th>Name</th><th>Type</th><th>URL slug</th><th></th></tr></thead>
+		<tbody>
+		{{range .Collections}}
+			<tr>
+				<td>{{if .Color}}<span class="swatch" style="background: {{.Color}}"></span>{{end}}
+					<a href="/admin/collections/{{.ID}}">{{if .DisplayName}}{{.DisplayName}}{{else}}{{.URI}}{{end}}</a></td>
+				<td class="muted">{{if eq .Type "calendar"}}Calendar{{else}}Address book{{end}}</td>
+				<td><code>{{.URI}}</code></td>
+				<td class="actions"><a class="button" href="/admin/collections/{{.ID}}">Edit</a></td>
+			</tr>
+		{{else}}
+			<tr><td colspan="4" class="empty">No collections. Clients can create their own, or add one below.</td></tr>
+		{{end}}
+		</tbody>
+	</table>
+</div>
+
+<h2>Add a collection</h2>
+<form method="post" action="/admin/users/{{.Subject.ID}}/collections" class="card">
+	<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+	<div class="row">
+		<div class="field">
+			<label for="uri">URL slug</label>
+			<input type="text" id="uri" name="uri" value="{{.Form.URI}}" placeholder="personal" required>
+		</div>
+		<div class="field">
+			<label for="type">Type</label>
+			<select id="type" name="type">
+				<option value="calendar">Calendar</option>
+				<option value="addressbook">Address book</option>
+			</select>
+		</div>
+		<div class="field">
+			<label for="display_name_c">Display name</label>
+			<input type="text" id="display_name_c" name="display_name" value="{{.Form.DisplayName}}">
+		</div>
+	</div>
+	<button type="submit" class="primary">Create collection</button>
+</form>
+
+<h2>Delete user</h2>
+<div class="card">
+	<p class="muted">Removes {{.Subject.Username}} along with every collection and object they own. This cannot be undone.</p>
+	{{if .IsSelf}}
+		<p class="muted">You cannot delete the account you are signed in as.</p>
+	{{else}}
+		<form method="post" action="/admin/users/{{.Subject.ID}}/delete">
+			<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+			<button class="danger" hx-post="/admin/users/{{.Subject.ID}}/delete"
+			        hx-confirm="Delete {{.Subject.Username}} and everything they own?">Delete this user</button>
+		</form>
+		<p class="muted"><a href="/admin/users/{{.Subject.ID}}/delete">Confirm without JavaScript</a></p>
+	{{end}}
+</div>
+{{end}}
