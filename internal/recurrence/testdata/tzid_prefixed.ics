@@ -1,0 +1,11 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//edav//test//EN
+BEGIN:VEVENT
+UID:tzprefix-1
+DTSTAMP:20260101T000000Z
+DTSTART;TZID=/freeassociation.sourceforge.net/Europe/Berlin:20260315T090000
+DTEND;TZID=/freeassociation.sourceforge.net/Europe/Berlin:20260315T100000
+SUMMARY:Namespaced TZID
+END:VEVENT
+END:VCALENDAR
