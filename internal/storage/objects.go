@@ -29,6 +29,7 @@ type Object struct {
 	Raw           []byte
 	UID           string
 	ComponentType string
+	DisplayName   string
 	StartAt       *time.Time
 	EndAt         *time.Time
 	Recurring     bool
@@ -36,7 +37,7 @@ type Object struct {
 	UpdatedAt     time.Time
 }
 
-const objectColumns = `id, collection_id, uri, etag, raw, uid, component_type,
+const objectColumns = `id, collection_id, uri, etag, raw, uid, component_type, display_name,
 	start_at, end_at, recurring, created_at, updated_at`
 
 func scanObject(row interface{ Scan(...any) error }) (*Object, error) {
@@ -44,7 +45,7 @@ func scanObject(row interface{ Scan(...any) error }) (*Object, error) {
 	var start, end sql.NullInt64
 	var created, updated int64
 	if err := row.Scan(&o.ID, &o.CollectionID, &o.URI, &o.ETag, &o.Raw, &o.UID, &o.ComponentType,
-		&start, &end, &o.Recurring, &created, &updated); err != nil {
+		&o.DisplayName, &start, &end, &o.Recurring, &created, &updated); err != nil {
 		return nil, err
 	}
 	if start.Valid {
@@ -101,16 +102,17 @@ func PutObject(ctx context.Context, db *sql.DB, obj *Object) (*Object, error) {
 
 	if exists {
 		_, err = tx.ExecContext(ctx,
-			`UPDATE objects SET etag = ?, raw = ?, uid = ?, component_type = ?,
+			`UPDATE objects SET etag = ?, raw = ?, uid = ?, component_type = ?, display_name = ?,
 			                    start_at = ?, end_at = ?, recurring = ?, updated_at = ?
 			 WHERE id = ?`,
-			etag, obj.Raw, obj.UID, obj.ComponentType, start, end, obj.Recurring, now, existingID)
+			etag, obj.Raw, obj.UID, obj.ComponentType, obj.DisplayName,
+			start, end, obj.Recurring, now, existingID)
 	} else {
 		_, err = tx.ExecContext(ctx,
-			`INSERT INTO objects (collection_id, uri, etag, raw, uid, component_type,
+			`INSERT INTO objects (collection_id, uri, etag, raw, uid, component_type, display_name,
 			                      start_at, end_at, recurring, created_at, updated_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			obj.CollectionID, obj.URI, etag, obj.Raw, obj.UID, obj.ComponentType,
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			obj.CollectionID, obj.URI, etag, obj.Raw, obj.UID, obj.ComponentType, obj.DisplayName,
 			start, end, obj.Recurring, now, now)
 	}
 	if err != nil {
