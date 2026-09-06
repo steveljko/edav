@@ -16,9 +16,11 @@ RDATE and RECURRENCE-ID overrides, honouring embedded VTIMEZONE definitions.
 Incremental synchronisation works through `sync-collection`, including
 reporting deletions to a client whose token predates them.
 
-Not yet built: the admin UI, and scheduling (RFC 6638 invitations and
-free/busy), which is out of scope for v1. Collections are created by a client
-rather than through a UI.
+There is a web interface at `/admin` for managing users and collections, and a
+client setup page listing the exact addresses to paste into each client.
+
+Not yet built: scheduling (RFC 6638 invitations and free/busy), which is out of
+scope for v1, and packaging.
 
 ## Running
 
@@ -26,6 +28,15 @@ rather than through a UI.
 EDAV_ADMIN_PASSWORD=… make run
 curl localhost:8080/healthz
 ```
+
+## Administration
+
+Open `/admin` and sign in with `EDAV_ADMIN_USERNAME` and `EDAV_ADMIN_PASSWORD`.
+From there you can add users, reset passwords, and create or edit collections.
+The **Client setup** page shows the addresses to give each client.
+
+The admin session cookie is `Secure` by default, which browsers refuse over
+plain HTTP. For local development set `EDAV_SECURE_COOKIES=false`.
 
 ## Client setup
 
