@@ -257,32 +257,48 @@ type backend struct {
 	Prefix  string
 }
 
-type resourceType int
+type ResourceType int
 
 const (
-	resourceTypeRoot resourceType = iota
-	resourceTypeUserPrincipal
-	resourceTypeAddressBookHomeSet
-	resourceTypeAddressBook
-	resourceTypeAddressObject
+	ResourceTypeRoot ResourceType = iota
+	ResourceTypeUserPrincipal
+	ResourceTypeAddressBookHomeSet
+	ResourceTypeAddressBook
+	ResourceTypeAddressObject
 )
 
-func (b *backend) resourceTypeAtPath(reqPath string) resourceType {
+// ResourceTypeResolver lets a Backend classify request paths itself. Without
+// it, a path is classified by how many segments follow the prefix, which cannot
+// tell a principal from an address book home set when both sit at the same
+// depth -- the usual layout, /<prefix>/principals/<user>/ alongside
+// /<prefix>/addressbooks/<user>/. Principal discovery is the first thing Apple
+// clients do, and they give no useful error when it goes wrong.
+type ResourceTypeResolver interface {
+	ResourceTypeAtPath(reqPath string) (ResourceType, bool)
+}
+
+func (b *backend) resourceTypeAtPath(reqPath string) ResourceType {
+	if resolver, ok := b.Backend.(ResourceTypeResolver); ok {
+		if t, ok := resolver.ResourceTypeAtPath(reqPath); ok {
+			return t
+		}
+	}
+
 	p := path.Clean(reqPath)
 	p = strings.TrimPrefix(p, b.Prefix)
 	if !strings.HasPrefix(p, "/") {
 		p = "/" + p
 	}
 	if p == "/" {
-		return resourceTypeRoot
+		return ResourceTypeRoot
 	}
-	return resourceType(len(strings.Split(p, "/")) - 1)
+	return ResourceType(len(strings.Split(p, "/")) - 1)
 }
 
 func (b *backend) Options(r *http.Request) (caps []string, allow []string, err error) {
 	caps = []string{"addressbook"}
 
-	if b.resourceTypeAtPath(r.URL.Path) != resourceTypeAddressObject {
+	if b.resourceTypeAtPath(r.URL.Path) != ResourceTypeAddressObject {
 		// Note: some clients assume the address book is read-only when
 		// DELETE/MKCOL are missing
 		return caps, []string{http.MethodOptions, "PROPFIND", "REPORT", "DELETE", "MKCOL"}, nil
@@ -341,13 +357,13 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 	var resps []internal.Response
 
 	switch resType {
-	case resourceTypeRoot:
+	case ResourceTypeRoot:
 		resp, err := b.propFindRoot(r.Context(), propfind)
 		if err != nil {
 			return nil, err
 		}
 		resps = append(resps, *resp)
-	case resourceTypeUserPrincipal:
+	case ResourceTypeUserPrincipal:
 		principalPath, err := b.Backend.CurrentUserPrincipal(r.Context())
 		if err != nil {
 			return nil, err
@@ -373,7 +389,7 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 				}
 			}
 		}
-	case resourceTypeAddressBookHomeSet:
+	case ResourceTypeAddressBookHomeSet:
 		homeSetPath, err := b.Backend.AddressBookHomeSetPath(r.Context())
 		if err != nil {
 			return nil, err
@@ -393,7 +409,7 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 				resps = append(resps, resps_...)
 			}
 		}
-	case resourceTypeAddressBook:
+	case ResourceTypeAddressBook:
 		ab, err := b.Backend.GetAddressBook(r.Context(), r.URL.Path)
 		if err != nil {
 			return nil, err
@@ -410,7 +426,7 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 			}
 			resps = append(resps, resps_...)
 		}
-	case resourceTypeAddressObject:
+	case ResourceTypeAddressObject:
 		ao, err := b.Backend.GetAddressObject(r.Context(), r.URL.Path, &dataReq)
 		if err != nil {
 			return nil, err
@@ -708,16 +724,16 @@ func (b *backend) Put(w http.ResponseWriter, r *http.Request) error {
 
 func (b *backend) Delete(r *http.Request) error {
 	switch b.resourceTypeAtPath(r.URL.Path) {
-	case resourceTypeAddressBook:
+	case ResourceTypeAddressBook:
 		return b.Backend.DeleteAddressBook(r.Context(), r.URL.Path)
-	case resourceTypeAddressObject:
+	case ResourceTypeAddressObject:
 		return b.Backend.DeleteAddressObject(r.Context(), r.URL.Path)
 	}
 	return internal.HTTPErrorf(http.StatusForbidden, "carddav: cannot delete resource at given location")
 }
 
 func (b *backend) Mkcol(r *http.Request) error {
-	if b.resourceTypeAtPath(r.URL.Path) != resourceTypeAddressBook {
+	if b.resourceTypeAtPath(r.URL.Path) != ResourceTypeAddressBook {
 		return internal.HTTPErrorf(http.StatusForbidden, "carddav: address book creation not allowed at given location")
 	}
 
