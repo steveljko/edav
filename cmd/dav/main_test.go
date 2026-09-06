@@ -1,10 +1,25 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
+
+	"github.com/steveljko/edav/internal/storage"
 )
+
+func testDB(t *testing.T) *sql.DB {
+	t.Helper()
+	db, err := storage.Open(context.Background(), filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("storage.Open() = %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+	return db
+}
 
 func TestMuxRoutes(t *testing.T) {
 	tests := []struct {
@@ -19,7 +34,7 @@ func TestMuxRoutes(t *testing.T) {
 		{"unknown path", http.MethodGet, "/nope", http.StatusNotFound, ""},
 	}
 
-	mux := newMux()
+	mux := newMux(testDB(t))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
@@ -32,5 +47,17 @@ func TestMuxRoutes(t *testing.T) {
 				t.Errorf("body = %q, want %q", rec.Body.String(), tt.wantBody)
 			}
 		})
+	}
+}
+
+func TestHealthzReportsClosedDatabase(t *testing.T) {
+	db := testDB(t)
+	db.Close()
+
+	rec := httptest.NewRecorder()
+	newMux(db).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusServiceUnavailable)
 	}
 }

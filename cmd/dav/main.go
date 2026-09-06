@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -9,38 +10,49 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/steveljko/edav/internal/config"
+	"github.com/steveljko/edav/internal/storage"
 )
 
 const shutdownTimeout = 10 * time.Second
 
 func main() {
-	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	slog.SetDefault(logger)
-
-	addr := os.Getenv("EDAV_ADDR")
-	if addr == "" {
-		addr = ":8080"
+	cfg, err := config.Load(os.Getenv)
+	if err != nil {
+		slog.Error("configuration error", "error", err)
+		os.Exit(2)
 	}
 
-	if err := run(addr); err != nil {
-		logger.Error("server failed", "error", err)
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: cfg.LogLevel})))
+
+	if err := run(cfg); err != nil {
+		slog.Error("server failed", "error", err)
 		os.Exit(1)
 	}
 }
 
-func run(addr string) error {
-	srv := &http.Server{
-		Addr:              addr,
-		Handler:           newMux(),
-		ReadHeaderTimeout: 10 * time.Second,
-	}
-
+func run(cfg *config.Config) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	db, err := storage.Open(ctx, cfg.DBPath)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	slog.Info("database ready", "path", cfg.DBPath)
+
+	srv := &http.Server{
+		Addr:              cfg.Addr,
+		Handler:           newMux(db),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
 	errCh := make(chan error, 1)
 	go func() {
-		slog.Info("listening", "addr", addr)
+		slog.Info("listening", "addr", cfg.Addr,
+			"caldav", cfg.CalDAVEnabled, "carddav", cfg.CardDAVEnabled, "webdav", cfg.WebDAVEnabled)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
@@ -59,14 +71,21 @@ func run(addr string) error {
 	return srv.Shutdown(shutdownCtx)
 }
 
-func newMux() *http.ServeMux {
+func newMux(db *sql.DB) *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", healthz)
+	mux.HandleFunc("GET /healthz", healthz(db))
 	return mux
 }
 
-func healthz(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("ok\n"))
+func healthz(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := db.PingContext(r.Context()); err != nil {
+			slog.Error("health check failed", "error", err)
+			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok\n"))
+	}
 }
