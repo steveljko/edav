@@ -17,11 +17,15 @@ const (
 	KindAddressBookHome
 	KindAddressBook
 	KindAddressObject
+	KindCalendarHome
+	KindCalendar
+	KindCalendarObject
 )
 
 const (
 	principalsSegment   = "principals"
 	addressBooksSegment = "addressbooks"
+	calendarsSegment    = "calendars"
 )
 
 // Resource is a parsed request path.
@@ -60,6 +64,18 @@ func (p Paths) AddressObject(user, collection, object string) string {
 	return p.AddressBook(user, collection) + object
 }
 
+func (p Paths) CalendarHome(user string) string {
+	return p.Prefix + "/" + calendarsSegment + "/" + user + "/"
+}
+
+func (p Paths) Calendar(user, collection string) string {
+	return p.CalendarHome(user) + collection + "/"
+}
+
+func (p Paths) CalendarObject(user, collection, object string) string {
+	return p.Calendar(user, collection) + object
+}
+
 // Parse resolves a request path against the prefix. Trailing slashes are not
 // significant: clients are inconsistent about sending them, and a collection
 // requested without one is still that collection.
@@ -88,6 +104,20 @@ func (p Paths) Parse(path string) (Resource, error) {
 		case 4:
 			return Resource{
 				Kind:       KindAddressObject,
+				User:       segments[1],
+				Collection: segments[2],
+				Object:     segments[3],
+			}, nil
+		}
+	case calendarsSegment:
+		switch len(segments) {
+		case 2:
+			return Resource{Kind: KindCalendarHome, User: segments[1]}, nil
+		case 3:
+			return Resource{Kind: KindCalendar, User: segments[1], Collection: segments[2]}, nil
+		case 4:
+			return Resource{
+				Kind:       KindCalendarObject,
 				User:       segments[1],
 				Collection: segments[2],
 				Object:     segments[3],

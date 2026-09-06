@@ -163,6 +163,35 @@ func ListObjects(ctx context.Context, db *sql.DB, collectionID int64) ([]*Object
 	return objects, rows.Err()
 }
 
+// ObjectsInTimeRange narrows a collection to the objects that could overlap
+// [from, to). It is a prefilter, not an answer: a recurring object is kept
+// whenever its overall span reaches the range, but only expanding its rule can
+// say whether an occurrence actually falls inside. Objects with no start, such
+// as a VTODO carrying neither DTSTART nor DUE, always survive.
+func ObjectsInTimeRange(ctx context.Context, db *sql.DB, collectionID int64, from, to time.Time) ([]*Object, error) {
+	rows, err := db.QueryContext(ctx,
+		`SELECT `+objectColumns+` FROM objects
+		  WHERE collection_id = ?
+		    AND (start_at IS NULL
+		         OR (start_at < ? AND (end_at IS NULL OR end_at > ?)))
+		  ORDER BY uri`,
+		collectionID, to.Unix(), from.Unix())
+	if err != nil {
+		return nil, fmt.Errorf("time range query in collection %d: %w", collectionID, err)
+	}
+	defer rows.Close()
+
+	var objects []*Object
+	for rows.Next() {
+		o, err := scanObject(rows)
+		if err != nil {
+			return nil, fmt.Errorf("time range query in collection %d: %w", collectionID, err)
+		}
+		objects = append(objects, o)
+	}
+	return objects, rows.Err()
+}
+
 func DeleteObject(ctx context.Context, db *sql.DB, collectionID int64, uri string) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {

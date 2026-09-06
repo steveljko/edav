@@ -13,6 +13,9 @@ func TestPathsBuild(t *testing.T) {
 		{"root", testPaths.Root(), "/dav/"},
 		{"principal", testPaths.Principal("alice"), "/dav/principals/alice/"},
 		{"home set", testPaths.AddressBookHome("alice"), "/dav/addressbooks/alice/"},
+		{"calendar home", testPaths.CalendarHome("alice"), "/dav/calendars/alice/"},
+		{"calendar", testPaths.Calendar("alice", "work"), "/dav/calendars/alice/work/"},
+		{"calendar object", testPaths.CalendarObject("alice", "work", "e.ics"), "/dav/calendars/alice/work/e.ics"},
 		{"address book", testPaths.AddressBook("alice", "contacts"), "/dav/addressbooks/alice/contacts/"},
 		{"object", testPaths.AddressObject("alice", "contacts", "ada.vcf"), "/dav/addressbooks/alice/contacts/ada.vcf"},
 	}
@@ -48,6 +51,15 @@ func TestPathsParse(t *testing.T) {
 			"/dav/addressbooks/alice/contacts/ada.vcf",
 			Resource{Kind: KindAddressObject, User: "alice", Collection: "contacts", Object: "ada.vcf"},
 		},
+		{"/dav/calendars/alice/", Resource{Kind: KindCalendarHome, User: "alice"}},
+		{
+			"/dav/calendars/alice/work/",
+			Resource{Kind: KindCalendar, User: "alice", Collection: "work"},
+		},
+		{
+			"/dav/calendars/alice/work/event.ics",
+			Resource{Kind: KindCalendarObject, User: "alice", Collection: "work", Object: "event.ics"},
+		},
 		{
 			// Apple clients use the UID as the filename, colons and all.
 			"/dav/addressbooks/alice/contacts/urn:uuid:4fbe8971-0bc3.vcf",
@@ -71,7 +83,6 @@ func TestPathsParse(t *testing.T) {
 func TestPathsParseRejects(t *testing.T) {
 	for _, path := range []string{
 		"/other/addressbooks/alice/contacts/",
-		"/dav/calendars/alice/work/",
 		"/dav/principals/",
 		"/dav/principals/alice/extra/",
 		"/dav/addressbooks/",
