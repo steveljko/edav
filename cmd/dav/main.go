@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -29,6 +31,18 @@ const (
 )
 
 func main() {
+	check := flag.Bool("healthcheck", false,
+		"probe a running server's /healthz and exit; for container health checks, which have no shell on a scratch image")
+	flag.Parse()
+
+	if *check {
+		if err := healthcheck(os.Getenv("EDAV_ADDR")); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	cfg, err := config.Load(os.Getenv)
 	if err != nil {
 		slog.Error("configuration error", "error", err)
@@ -90,6 +104,34 @@ func run(cfg *config.Config) error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	return srv.Shutdown(shutdownCtx)
+}
+
+// healthcheck probes a server listening on addr. A bare ":8080" means the
+// server listens on every interface, which from inside the container is
+// reachable on the loopback address.
+func healthcheck(addr string) error {
+	if addr == "" {
+		addr = ":8080"
+	}
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return fmt.Errorf("healthcheck: %s is not a host:port address: %w", addr, err)
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get("http://" + net.JoinHostPort(host, port) + "/healthz")
+	if err != nil {
+		return fmt.Errorf("healthcheck: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("healthcheck: /healthz returned %s", resp.Status)
+	}
+	return nil
 }
 
 func seedAdmin(ctx context.Context, db *sql.DB, cfg *config.Config) error {
