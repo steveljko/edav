@@ -8,10 +8,14 @@ There is nothing to install alongside it — no PHP, no separate database server
 
 ## Status
 
-Early. CardDAV works: address book creation and deletion, contact PUT/GET/DELETE,
-multiget and property queries, principal discovery and the well-known redirect.
-CalDAV and the admin UI are not built yet, so address books are created by a
-client rather than through a UI.
+Early. CardDAV and CalDAV both work: collection creation and deletion, object
+PUT/GET/DELETE, multiget, property and time-range queries, principal discovery
+and the well-known redirects. Recurring events are expanded with EXDATE,
+RDATE and RECURRENCE-ID overrides, honouring embedded VTIMEZONE definitions.
+
+Not yet built: `sync-collection` (clients fall back to ctag polling), the admin
+UI, and scheduling (RFC 6638 invitations and free/busy), which is out of scope
+for v1. Collections are created by a client rather than through a UI.
 
 ## Running
 
@@ -32,17 +36,22 @@ Sign in with the admin username and password. The URLs behind discovery are:
 
 | Resource | Path |
 | --- | --- |
-| Well-known | `/.well-known/carddav` (301 to the DAV root) |
+| Well-known | `/.well-known/carddav`, `/.well-known/caldav` (301 to the DAV root) |
 | DAV root | `/dav/` |
 | Principal | `/dav/principals/{user}/` |
 | Address book home | `/dav/addressbooks/{user}/` |
 | Address book | `/dav/addressbooks/{user}/{name}/` |
+| Calendar home | `/dav/calendars/{user}/` |
+| Calendar | `/dav/calendars/{user}/{name}/` |
 
 `/.well-known/carddav` is served without authentication on purpose: iOS and
 macOS probe it before they have credentials to send, and answering `401` there
 ends discovery without showing the user a useful error.
 
-Contacts are stored exactly as the client sends them. Properties this server
+The principal advertises both home sets, so a client that discovers one
+protocol finds the other from the same response.
+
+Contacts and events are stored exactly as the client sends them. Properties this server
 does not model, including vendor `X-` extensions, are preserved byte for byte
 and the ETag changes only when those bytes do.
 
