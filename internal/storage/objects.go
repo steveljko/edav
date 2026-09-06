@@ -217,6 +217,50 @@ func DeleteObject(ctx context.Context, db *sql.DB, collectionID int64, uri strin
 	return nil
 }
 
+// Change is one entry of a collection's change log.
+type Change struct {
+	Seq  int64
+	URI  string
+	Type ChangeType
+}
+
+// ChangesSince returns the changes a collection has recorded after sinceSeq,
+// oldest first, alongside the collection's current sequence.
+//
+// The log holds one row per URI, carrying its latest transition, and rows are
+// never dropped: a deletion has to stay visible to any client whose token
+// predates it, or that client silently keeps an object the server no longer
+// has. Passing 0 therefore yields every URI the collection has ever held,
+// which is exactly what an initial sync wants.
+func ChangesSince(ctx context.Context, db *sql.DB, collectionID, sinceSeq int64) ([]Change, int64, error) {
+	c, err := CollectionByID(ctx, db, collectionID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := db.QueryContext(ctx,
+		`SELECT seq, object_uri, change_type FROM object_changes
+		  WHERE collection_id = ? AND seq > ?
+		  ORDER BY seq`, collectionID, sinceSeq)
+	if err != nil {
+		return nil, 0, fmt.Errorf("changes since %d in collection %d: %w", sinceSeq, collectionID, err)
+	}
+	defer rows.Close()
+
+	var changes []Change
+	for rows.Next() {
+		var ch Change
+		if err := rows.Scan(&ch.Seq, &ch.URI, &ch.Type); err != nil {
+			return nil, 0, fmt.Errorf("changes since %d in collection %d: %w", sinceSeq, collectionID, err)
+		}
+		changes = append(changes, ch)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	return changes, c.SyncSeq, nil
+}
+
 // recordChange advances the collection's sync sequence and appends to its
 // change log. The UPDATE ... RETURNING keeps the increment and the read of the
 // new value in one statement, so concurrent writers cannot be handed the same
