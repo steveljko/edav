@@ -8,9 +8,10 @@ There is nothing to install alongside it — no PHP, no separate database server
 
 ## Status
 
-Early. Loads its configuration, migrates the database, seeds the admin account
-and serves `GET /healthz`. Password hashing, Basic auth for DAV clients and
-admin cookie sessions are in place. No DAV endpoints or admin UI yet.
+Early. CardDAV works: address book creation and deletion, contact PUT/GET/DELETE,
+multiget and property queries, principal discovery and the well-known redirect.
+CalDAV and the admin UI are not built yet, so address books are created by a
+client rather than through a UI.
 
 ## Running
 
@@ -18,6 +19,32 @@ admin cookie sessions are in place. No DAV endpoints or admin UI yet.
 EDAV_ADMIN_PASSWORD=… make run
 curl localhost:8080/healthz
 ```
+
+## Client setup
+
+Point the client at the server root and let it discover the rest:
+
+```
+http://localhost:8080/
+```
+
+Sign in with the admin username and password. The URLs behind discovery are:
+
+| Resource | Path |
+| --- | --- |
+| Well-known | `/.well-known/carddav` (301 to the DAV root) |
+| DAV root | `/dav/` |
+| Principal | `/dav/principals/{user}/` |
+| Address book home | `/dav/addressbooks/{user}/` |
+| Address book | `/dav/addressbooks/{user}/{name}/` |
+
+`/.well-known/carddav` is served without authentication on purpose: iOS and
+macOS probe it before they have credentials to send, and answering `401` there
+ends discovery without showing the user a useful error.
+
+Contacts are stored exactly as the client sends them. Properties this server
+does not model, including vendor `X-` extensions, are preserved byte for byte
+and the ETag changes only when those bytes do.
 
 ## Configuration
 
