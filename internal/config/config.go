@@ -27,6 +27,10 @@ type Config struct {
 	CalDAVEnabled  bool
 	CardDAVEnabled bool
 	WebDAVEnabled  bool
+
+	// SecureCookies sets the Secure attribute on the admin session cookie.
+	// Turning it off is only useful for local plain-HTTP development.
+	SecureCookies bool
 }
 
 // Load reads configuration from the environment, applying defaults. It reports
@@ -91,6 +95,7 @@ func Load(getenv func(string) string) (*Config, error) {
 		{"EDAV_CALDAV_ENABLED", true, &cfg.CalDAVEnabled},
 		{"EDAV_CARDDAV_ENABLED", true, &cfg.CardDAVEnabled},
 		{"EDAV_WEBDAV_ENABLED", false, &cfg.WebDAVEnabled},
+		{"EDAV_SECURE_COOKIES", true, &cfg.SecureCookies},
 	} {
 		v, err := boolean(getenv, f.key, f.def)
 		if err != nil {

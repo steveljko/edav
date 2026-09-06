@@ -25,6 +25,7 @@ func TestLoadDefaults(t *testing.T) {
 		CalDAVEnabled:  true,
 		CardDAVEnabled: true,
 		WebDAVEnabled:  false,
+		SecureCookies:  true,
 	}
 	if *cfg != want {
 		t.Errorf("Load() = %+v, want %+v", *cfg, want)
@@ -42,6 +43,7 @@ func TestLoadOverrides(t *testing.T) {
 		"EDAV_CALDAV_ENABLED":  "false",
 		"EDAV_CARDDAV_ENABLED": "0",
 		"EDAV_WEBDAV_ENABLED":  "true",
+		"EDAV_SECURE_COOKIES":  "false",
 	}))
 	if err != nil {
 		t.Fatalf("Load() = %v", err)
@@ -57,6 +59,7 @@ func TestLoadOverrides(t *testing.T) {
 		CalDAVEnabled:  false,
 		CardDAVEnabled: false,
 		WebDAVEnabled:  true,
+		SecureCookies:  false,
 	}
 	if *cfg != want {
 		t.Errorf("Load() = %+v, want %+v", *cfg, want)
