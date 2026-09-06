@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/steveljko/edav/internal/auth"
+	"github.com/steveljko/edav/internal/dav/caldav"
 	"github.com/steveljko/edav/internal/dav/carddav"
 )
 
@@ -19,6 +20,7 @@ type Server struct {
 	Prefix string
 
 	CardDAVEnabled bool
+	CalDAVEnabled  bool
 }
 
 func (s *Server) paths() Paths {
@@ -35,11 +37,36 @@ func (s *Server) Register(mux *http.ServeMux) {
 	if s.CardDAVEnabled {
 		mux.Handle("/.well-known/carddav", wellKnown(p.Root()))
 	}
+	if s.CalDAVEnabled {
+		mux.Handle("/.well-known/caldav", wellKnown(p.Root()))
+	}
 
-	backend := &CardDAVBackend{DB: s.DB, Paths: p}
-	handler := &carddav.Handler{Backend: backend, Prefix: p.Prefix}
+	protected := auth.RequireBasicAuth(s.DB, Realm)
 
-	mux.Handle(p.Prefix+"/", auth.RequireBasicAuth(s.DB, Realm)(handler))
+	// The two handlers own disjoint subtrees, so each is mounted on its own
+	// prefix rather than being chained; only the principal and the root are
+	// shared, and both handlers answer those identically.
+	if s.CardDAVEnabled {
+		h := &carddav.Handler{Backend: &CardDAVBackend{DB: s.DB, Paths: p}, Prefix: p.Prefix}
+		mux.Handle(p.Prefix+"/"+addressBooksSegment+"/", protected(h))
+	}
+	if s.CalDAVEnabled {
+		h := &caldav.Handler{Backend: &CalDAVBackend{DB: s.DB, Paths: p}, Prefix: p.Prefix}
+		mux.Handle(p.Prefix+"/"+calendarsSegment+"/", protected(h))
+	}
+
+	mux.Handle(p.Prefix+"/", protected(s.principalHandler(p)))
+}
+
+// principalHandler answers requests at the DAV root and on principals. Both
+// protocol handlers can serve these, so whichever is enabled is used; a client
+// discovering one still finds its way to the other's home set through the
+// principal's properties.
+func (s *Server) principalHandler(p Paths) http.Handler {
+	if s.CalDAVEnabled {
+		return &caldav.Handler{Backend: &CalDAVBackend{DB: s.DB, Paths: p}, Prefix: p.Prefix}
+	}
+	return &carddav.Handler{Backend: &CardDAVBackend{DB: s.DB, Paths: p}, Prefix: p.Prefix}
 }
 
 // wellKnown redirects to the DAV root. RFC 6764 §6 asks for a 301 so that

@@ -11,6 +11,9 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	// Embedded so TZID lookups work in a scratch container, which carries no
+	// zoneinfo of its own.
+	_ "time/tzdata"
 
 	"github.com/steveljko/edav/internal/auth"
 	"github.com/steveljko/edav/internal/config"
@@ -122,11 +125,12 @@ func newMux(db *sql.DB, cfg *config.Config) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthz(db))
 
-	if cfg.CardDAVEnabled {
+	if cfg.CardDAVEnabled || cfg.CalDAVEnabled {
 		(&dav.Server{
 			DB:             db,
 			Prefix:         davPrefix,
 			CardDAVEnabled: cfg.CardDAVEnabled,
+			CalDAVEnabled:  cfg.CalDAVEnabled,
 		}).Register(mux)
 	}
 	return mux

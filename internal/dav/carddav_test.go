@@ -61,7 +61,7 @@ func newHarness(t *testing.T) *harness {
 	}
 
 	mux := http.NewServeMux()
-	(&Server{DB: db, Prefix: "/dav", CardDAVEnabled: true}).Register(mux)
+	(&Server{DB: db, Prefix: "/dav", CardDAVEnabled: true, CalDAVEnabled: true}).Register(mux)
 
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
