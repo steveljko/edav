@@ -10,6 +10,22 @@ import (
 
 const namespace = "urn:ietf:params:xml:ns:caldav"
 
+// A principal advertises every home set it has, whatever protocol asked. The
+// element is declared here rather than imported so the two protocol packages
+// stay independent of each other.
+const carddavNamespace = "urn:ietf:params:xml:ns:carddav"
+
+var addressBookHomeSetName = xml.Name{Space: carddavNamespace, Local: "addressbook-home-set"}
+
+type addressbookHomeSet struct {
+	XMLName xml.Name      `xml:"urn:ietf:params:xml:ns:carddav addressbook-home-set"`
+	Href    internal.Href `xml:"href"`
+}
+
+func (a *addressbookHomeSet) GetXMLName() xml.Name {
+	return addressBookHomeSetName
+}
+
 var (
 	calendarHomeSetName = xml.Name{Space: namespace, Local: "calendar-home-set"}
 

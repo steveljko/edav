@@ -310,6 +310,14 @@ type ResourceTypeResolver interface {
 	ResourceTypeAtPath(reqPath string) (ResourceType, bool)
 }
 
+// AddressBookHomeSetProvider is implemented by a backend whose principals also
+// serve CardDAV. A principal has one set of properties regardless of which
+// handler answers the PROPFIND, and a client that finds only calendar-home-set
+// there never discovers the address books.
+type AddressBookHomeSetProvider interface {
+	AddressBookHomeSetPath(ctx context.Context) (string, error)
+}
+
 func (b *backend) resourceTypeAtPath(reqPath string) ResourceType {
 	if resolver, ok := b.Backend.(ResourceTypeResolver); ok {
 		if t, ok := resolver.ResourceTypeAtPath(reqPath); ok {
@@ -507,6 +515,15 @@ func (b *backend) propFindUserPrincipal(ctx context.Context, propfind *internal.
 		}),
 		internal.ResourceTypeName: internal.PropFindValue(internal.NewResourceType(internal.CollectionName, internal.PrincipalName)),
 	}
+
+	if provider, ok := b.Backend.(AddressBookHomeSetProvider); ok {
+		if path, err := provider.AddressBookHomeSetPath(ctx); err == nil && path != "" {
+			props[addressBookHomeSetName] = internal.PropFindValue(&addressbookHomeSet{
+				Href: internal.Href{Path: path},
+			})
+		}
+	}
+
 	return internal.NewPropFindResponse(principalPath, propfind, props)
 }
 
