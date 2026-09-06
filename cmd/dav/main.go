@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -11,11 +12,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/steveljko/edav/internal/auth"
 	"github.com/steveljko/edav/internal/config"
 	"github.com/steveljko/edav/internal/storage"
 )
 
-const shutdownTimeout = 10 * time.Second
+const (
+	shutdownTimeout      = 10 * time.Second
+	sessionSweepInterval = time.Hour
+)
 
 func main() {
 	cfg, err := config.Load(os.Getenv)
@@ -43,6 +48,11 @@ func run(cfg *config.Config) error {
 	defer db.Close()
 	slog.Info("database ready", "path", cfg.DBPath)
 
+	if err := seedAdmin(ctx, db, cfg); err != nil {
+		return err
+	}
+	go sweepSessions(ctx, db)
+
 	srv := &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           newMux(db),
@@ -69,6 +79,41 @@ func run(cfg *config.Config) error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	return srv.Shutdown(shutdownCtx)
+}
+
+func seedAdmin(ctx context.Context, db *sql.DB, cfg *config.Config) error {
+	hash, err := auth.HashPassword(cfg.AdminPassword)
+	if err != nil {
+		return fmt.Errorf("hash admin password: %w", err)
+	}
+
+	u, err := storage.EnsureAdmin(ctx, db, cfg.AdminUsername, hash)
+	if err != nil {
+		return fmt.Errorf("seed admin account: %w", err)
+	}
+	slog.Info("admin account ready", "username", u.Username, "id", u.ID)
+	return nil
+}
+
+func sweepSessions(ctx context.Context, db *sql.DB) {
+	ticker := time.NewTicker(sessionSweepInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			n, err := storage.DeleteExpiredSessions(ctx, db, time.Now())
+			if err != nil {
+				slog.Error("session sweep failed", "error", err)
+				continue
+			}
+			if n > 0 {
+				slog.Debug("swept expired sessions", "count", n)
+			}
+		}
+	}
 }
 
 func newMux(db *sql.DB) *http.ServeMux {
