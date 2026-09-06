@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/steveljko/edav/internal/config"
 	"github.com/steveljko/edav/internal/storage"
 )
 
@@ -34,7 +35,7 @@ func TestMuxRoutes(t *testing.T) {
 		{"unknown path", http.MethodGet, "/nope", http.StatusNotFound, ""},
 	}
 
-	mux := newMux(testDB(t))
+	mux := newMux(testDB(t), &config.Config{})
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
@@ -55,7 +56,7 @@ func TestHealthzReportsClosedDatabase(t *testing.T) {
 	db.Close()
 
 	rec := httptest.NewRecorder()
-	newMux(db).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	newMux(db, &config.Config{}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusServiceUnavailable)

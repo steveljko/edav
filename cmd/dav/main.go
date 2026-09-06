@@ -14,12 +14,14 @@ import (
 
 	"github.com/steveljko/edav/internal/auth"
 	"github.com/steveljko/edav/internal/config"
+	"github.com/steveljko/edav/internal/dav"
 	"github.com/steveljko/edav/internal/storage"
 )
 
 const (
 	shutdownTimeout      = 10 * time.Second
 	sessionSweepInterval = time.Hour
+	davPrefix            = "/dav"
 )
 
 func main() {
@@ -55,7 +57,7 @@ func run(cfg *config.Config) error {
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           newMux(db),
+		Handler:           newMux(db, cfg),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -116,9 +118,17 @@ func sweepSessions(ctx context.Context, db *sql.DB) {
 	}
 }
 
-func newMux(db *sql.DB) *http.ServeMux {
+func newMux(db *sql.DB, cfg *config.Config) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthz(db))
+
+	if cfg.CardDAVEnabled {
+		(&dav.Server{
+			DB:             db,
+			Prefix:         davPrefix,
+			CardDAVEnabled: cfg.CardDAVEnabled,
+		}).Register(mux)
+	}
 	return mux
 }
 
