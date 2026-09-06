@@ -1,0 +1,10 @@
+.git
+.github
+bin
+*.db
+*.db-shm
+*.db-wal
+.env
+.DS_Store
+Dockerfile
+docker-compose.yml
