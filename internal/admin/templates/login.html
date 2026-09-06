@@ -1,18 +1,19 @@
 {{define "content"}}
-<div class="login">
-	<h1>Sign in</h1>
-	<p class="lede">Administration for this edav server.</p>
-	<form method="post" action="/admin/login" class="card">
-		<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-		<div class="field">
-			<label for="username">Username</label>
-			<input type="text" id="username" name="username" value="{{.Form.Username}}" autocomplete="username" autofocus required>
-		</div>
-		<div class="field">
-			<label for="password">Password</label>
-			<input type="password" id="password" name="password" autocomplete="current-password" required>
-		</div>
-		<button type="submit" class="primary">Sign in</button>
-	</form>
-</div>
+<div class="brand"><span class="mark">e</span> edav</div>
+<h1>Sign in</h1>
+<p class="subtitle">Administration for this server.</p>
+
+<form method="post" action="/admin/login" class="card">
+	<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+	<div class="field">
+		<label for="username">Username</label>
+		<input type="text" id="username" name="username" value="{{.Form.Username}}"
+		       autocomplete="username" autocapitalize="none" spellcheck="false" autofocus required>
+	</div>
+	<div class="field">
+		<label for="password">Password</label>
+		<input type="password" id="password" name="password" autocomplete="current-password" required>
+	</div>
+	<button type="submit" class="primary">Sign in</button>
+</form>
 {{end}}

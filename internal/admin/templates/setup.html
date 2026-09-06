@@ -1,73 +1,111 @@
 {{define "content"}}
-<h1>Client setup</h1>
-<p class="lede">The exact addresses to paste into each client.</p>
+<div class="page-head">
+	<div>
+		<h1>Client setup</h1>
+		<p class="subtitle">The exact addresses to paste into each client.</p>
+	</div>
+</div>
 
 {{if .Insecure}}
-<p class="notice error">This server is reachable over plain HTTP. Basic authentication sends the
-password on every request, so put it behind TLS before using it over an untrusted network.</p>
+<p class="notice error">{{template "icon-alert" .}}<span>This server is reachable over plain HTTP.
+Basic authentication sends the password on every request, so put it behind TLS before using it
+over an untrusted network.</span></p>
 {{end}}
 
 <h2>Server address</h2>
-<div class="card">
-	<pre class="url">{{.BaseURL}}</pre>
-	<p class="muted">Sign in with the account's own username and password.
-	{{if not .HasBaseURL}}Set <code>EDAV_BASE_URL</code> so this page shows the address your clients
-	actually reach, rather than the one this request happened to arrive on.{{end}}</p>
+<div class="card pad">
+	<div class="copy">
+		<code id="base-url">{{.BaseURL}}</code>
+		<button type="button" class="small js-only" data-copy="base-url">Copy</button>
+	</div>
+	<p class="hint">Give a client this and its own username and password; it finds calendars and
+		address books by itself.
+		{{if not .HasBaseURL}} Set <code>EDAV_BASE_URL</code> so this page shows the address your
+		clients actually reach, rather than the one this request happened to arrive on.{{end}}</p>
 </div>
 
 <h2>Per client</h2>
-<div class="card">
-	<dl class="setup">
-		<dt>iOS and macOS — Calendar, Contacts</dt>
-		<dd>Settings → Calendar (or Contacts) → Accounts → Add Account → Other →
-			Add CalDAV (or CardDAV) Account. Server: <code>{{.Host}}</code>.
-			Discovery goes through <code>/.well-known/caldav</code>, which this server answers
-			without asking for credentials first, so leave the path off.</dd>
+<div class="clients">
+	<div class="card client">
+		<div class="platform">iOS · macOS</div>
+		<h3>Calendar and Contacts</h3>
+		<ol>
+			<li>Settings → Calendar (or Contacts) → Accounts</li>
+			<li>Add Account → Other</li>
+			<li>Add CalDAV (or CardDAV) Account</li>
+			<li>Server: <code>{{.Host}}</code></li>
+		</ol>
+		<p class="hint">Leave the path off. Discovery goes through <code>/.well-known/caldav</code>,
+			which this server answers without asking for credentials first.</p>
+	</div>
 
-		<dt>DAVx⁵ (Android)</dt>
-		<dd>Add account → Login with URL and user name. Base URL: <code>{{.BaseURL}}</code>.
-			It finds both calendars and address books from one login.</dd>
+	<div class="card client">
+		<div class="platform">Android</div>
+		<h3>DAVx⁵</h3>
+		<ol>
+			<li>Add account → Login with URL and user name</li>
+			<li>Base URL: the server address above</li>
+			<li>Enter the account's username and password</li>
+		</ol>
+		<p class="hint">One login finds both calendars and address books.</p>
+	</div>
 
-		<dt>Thunderbird</dt>
-		<dd>Calendar: New Calendar → On the Network → CalDAV, location <code>{{.CalendarHome}}</code>.
-			Address book: New CardDAV Address Book, location <code>{{.AddressBookHome}}</code>.</dd>
+	<div class="card client">
+		<div class="platform">Desktop</div>
+		<h3>Thunderbird</h3>
+		<ol>
+			<li>Calendar → New Calendar → On the Network → CalDAV</li>
+			<li>Location: the calendar home below</li>
+			<li>Address book → New CardDAV Address Book</li>
+		</ol>
+		<p class="hint">Thunderbird wants the home set rather than the server root.</p>
+	</div>
 
-		<dt>Evolution, eM Client, and others</dt>
-		<dd>Where a client asks for a full collection URL rather than discovering it, use the
-			home set addresses below and pick a collection from the list it offers.</dd>
-	</dl>
+	<div class="card client">
+		<div class="platform">Desktop</div>
+		<h3>Evolution, eM Client</h3>
+		<ol>
+			<li>Add a CalDAV or CardDAV account</li>
+			<li>Use a home set address below</li>
+			<li>Pick a collection from the list it offers</li>
+		</ol>
+		<p class="hint">For clients that want a full URL rather than discovering one.</p>
+	</div>
 </div>
 
-<h2>Direct addresses{{if .Subject}} for {{.Subject.Username}}{{end}}</h2>
-<div class="card">
-	<dl class="setup">
+<h2>Addresses for {{.PathUser}}</h2>
+<div class="card pad">
+	<dl class="detail-grid">
 		<dt>Well-known discovery</dt>
-		<dd><pre class="url">{{.BaseURL}}/.well-known/caldav
-{{.BaseURL}}/.well-known/carddav</pre></dd>
+		<dd>
+			<div class="copy"><code id="wk-caldav">{{.BaseURL}}/.well-known/caldav</code>
+				<button type="button" class="small js-only" data-copy="wk-caldav">Copy</button></div>
+			<div class="copy"><code id="wk-carddav">{{.BaseURL}}/.well-known/carddav</code>
+				<button type="button" class="small js-only" data-copy="wk-carddav">Copy</button></div>
+		</dd>
 
 		<dt>Principal</dt>
-		<dd><pre class="url">{{.BaseURL}}{{.Principal}}</pre></dd>
+		<dd><div class="copy"><code id="principal">{{.BaseURL}}{{.Principal}}</code>
+			<button type="button" class="small js-only" data-copy="principal">Copy</button></div></dd>
 
 		<dt>Calendar home</dt>
-		<dd><pre class="url">{{.BaseURL}}{{.CalendarHomePath}}</pre></dd>
+		<dd><div class="copy"><code id="cal-home">{{.BaseURL}}{{.CalendarHomePath}}</code>
+			<button type="button" class="small js-only" data-copy="cal-home">Copy</button></div></dd>
 
 		<dt>Address book home</dt>
-		<dd><pre class="url">{{.BaseURL}}{{.AddressBookHomePath}}</pre></dd>
+		<dd><div class="copy"><code id="ab-home">{{.BaseURL}}{{.AddressBookHomePath}}</code>
+			<button type="button" class="small js-only" data-copy="ab-home">Copy</button></div></dd>
 	</dl>
-	<p class="muted">Paths shown for <strong>{{.PathUser}}</strong>. Every user has their own tree;
-		substitute the username to get another account's addresses.</p>
+	<p class="hint">Every user has their own tree; substitute the username for another account.</p>
 </div>
 
 <h2>Status</h2>
-<div class="card">
-	<table>
-		<tbody>
-			<tr><th>CalDAV</th><td>{{if .CalDAVEnabled}}Enabled{{else}}Disabled{{end}}</td></tr>
-			<tr><th>CardDAV</th><td>{{if .CardDAVEnabled}}Enabled{{else}}Disabled{{end}}</td></tr>
-			<tr><th>Users</th><td>{{.UserCount}}</td></tr>
-			<tr><th>Collections</th><td>{{.CalendarCount}} calendars, {{.AddressBookCount}} address books</td></tr>
-			<tr><th>Objects</th><td>{{.ObjectCount}}</td></tr>
-		</tbody>
-	</table>
+<div class="stats">
+	<div class="stat"><div class="value">{{if .CalDAVEnabled}}On{{else}}Off{{end}}</div><div class="label">CalDAV</div></div>
+	<div class="stat"><div class="value">{{if .CardDAVEnabled}}On{{else}}Off{{end}}</div><div class="label">CardDAV</div></div>
+	<div class="stat"><div class="value">{{.UserCount}}</div><div class="label">Users</div></div>
+	<div class="stat"><div class="value">{{.CalendarCount}}</div><div class="label">Calendars</div></div>
+	<div class="stat"><div class="value">{{.AddressBookCount}}</div><div class="label">Address books</div></div>
+	<div class="stat"><div class="value">{{.ObjectCount}}</div><div class="label">Objects</div></div>
 </div>
 {{end}}

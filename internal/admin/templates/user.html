@@ -1,14 +1,76 @@
 {{define "content"}}
-<h1>{{.Subject.Username}}</h1>
-<p class="lede"><a href="/admin/">All users</a></p>
+<p class="crumb"><a href="/admin/">Users</a> <span>/</span> <span>{{.Subject.Username}}</span></p>
+
+<div class="page-head">
+	<div style="display:flex;align-items:center;gap:.9rem">
+		<span class="avatar" style="width:2.75rem;height:2.75rem;font-size:.95rem">{{initials .Subject.Username}}</span>
+		<div>
+			<h1>{{if .Subject.DisplayName}}{{.Subject.DisplayName}}{{else}}{{.Subject.Username}}{{end}}</h1>
+			<p class="subtitle">{{.Subject.Username}}{{if .Subject.IsAdmin}} · administrator{{end}}</p>
+		</div>
+	</div>
+</div>
+
+<h2>Collections</h2>
+<div class="card">
+	<div class="list">
+	{{range .Collections}}
+		<a class="row-item" href="/admin/collections/{{.ID}}">
+			<span class="avatar square {{if eq .Type "calendar"}}calendar{{else}}contacts{{end}}">
+				{{if eq .Type "calendar"}}31{{else}}@{{end}}
+			</span>
+			<span class="row-main">
+				<span class="row-title">
+					{{if .Color}}<span class="swatch" style="background:{{.Color}}"></span>{{end}}
+					{{if .DisplayName}}{{.DisplayName}}{{else}}{{.URI}}{{end}}
+				</span>
+				<span class="row-sub mono">{{.URI}}</span>
+			</span>
+			<span class="badge {{if eq .Type "calendar"}}calendar{{else}}contacts{{end}}">
+				{{if eq .Type "calendar"}}calendar{{else}}contacts{{end}}
+			</span>
+		</a>
+	{{else}}
+		<div class="empty">
+			<div class="headline">No collections</div>
+			<p>Add one below, or let a client create its own on first sync.</p>
+		</div>
+	{{end}}
+	</div>
+</div>
+
+<h2>Add a collection</h2>
+<form method="post" action="/admin/users/{{.Subject.ID}}/collections" class="card pad">
+	<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+	<div class="row">
+		<div class="field narrow">
+			<label for="type">Type</label>
+			<select id="type" name="type">
+				<option value="calendar">Calendar</option>
+				<option value="addressbook">Address book</option>
+			</select>
+		</div>
+		<div class="field">
+			<label for="display_name_c">Name</label>
+			<input type="text" id="display_name_c" name="display_name" value="{{.Form.DisplayName}}" placeholder="Personal">
+		</div>
+		<div class="field">
+			<label for="uri">URL slug</label>
+			<input type="text" id="uri" name="uri" value="{{.Form.URI}}" placeholder="personal"
+			       autocapitalize="none" spellcheck="false" required>
+		</div>
+	</div>
+	<div class="actions-bar"><button type="submit" class="primary">Create collection</button></div>
+</form>
 
 <h2>Details</h2>
-<form method="post" action="/admin/users/{{.Subject.ID}}" class="card">
+<form method="post" action="/admin/users/{{.Subject.ID}}" class="card pad">
 	<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 	<div class="row">
 		<div class="field">
 			<label for="username">Username</label>
-			<input type="text" id="username" name="username" value="{{.Subject.Username}}" required>
+			<input type="text" id="username" name="username" value="{{.Subject.Username}}"
+			       autocapitalize="none" spellcheck="false" required>
 		</div>
 		<div class="field">
 			<label for="display_name">Display name</label>
@@ -20,84 +82,49 @@
 			<label for="email">Email</label>
 			<input type="email" id="email" name="email" value="{{.Subject.Email}}">
 		</div>
-		<div class="field">
+		<div class="field narrow">
 			<label for="is_admin">Administrator</label>
 			<select id="is_admin" name="is_admin"{{if .IsSelf}} disabled{{end}}>
 				<option value="0"{{if not .Subject.IsAdmin}} selected{{end}}>No</option>
 				<option value="1"{{if .Subject.IsAdmin}} selected{{end}}>Yes</option>
 			</select>
-			{{if .IsSelf}}<p class="muted">You cannot remove your own administrator access.</p>{{end}}
+			{{if .IsSelf}}<p class="hint">You cannot remove your own access.</p>{{end}}
 		</div>
 	</div>
-	<button type="submit" class="primary">Save changes</button>
+	<div class="actions-bar"><button type="submit" class="primary">Save changes</button></div>
 </form>
 
-<h2>Reset password</h2>
-<form method="post" action="/admin/users/{{.Subject.ID}}/password" class="card">
-	<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-	<div class="field">
-		<label for="password">New password</label>
-		<input type="password" id="password" name="password" autocomplete="new-password" required>
-	</div>
-	<p class="muted">Signing this user out of the admin interface everywhere. DAV clients will need the new password on their next sync.</p>
-	<button type="submit">Set password</button>
-</form>
-
-<h2>Collections</h2>
-<div class="card">
-	<table>
-		<thead><tr><th>Name</th><th>Type</th><th>URL slug</th><th></th></tr></thead>
-		<tbody>
-		{{range .Collections}}
-			<tr>
-				<td>{{if .Color}}<span class="swatch" style="background: {{.Color}}"></span>{{end}}
-					<a href="/admin/collections/{{.ID}}">{{if .DisplayName}}{{.DisplayName}}{{else}}{{.URI}}{{end}}</a></td>
-				<td class="muted">{{if eq .Type "calendar"}}Calendar{{else}}Address book{{end}}</td>
-				<td><code>{{.URI}}</code></td>
-				<td class="actions"><a class="button" href="/admin/collections/{{.ID}}">Edit</a></td>
-			</tr>
-		{{else}}
-			<tr><td colspan="4" class="empty">No collections. Clients can create their own, or add one below.</td></tr>
-		{{end}}
-		</tbody>
-	</table>
-</div>
-
-<h2>Add a collection</h2>
-<form method="post" action="/admin/users/{{.Subject.ID}}/collections" class="card">
+<h2>Password</h2>
+<form method="post" action="/admin/users/{{.Subject.ID}}/password" class="card pad">
 	<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 	<div class="row">
 		<div class="field">
-			<label for="uri">URL slug</label>
-			<input type="text" id="uri" name="uri" value="{{.Form.URI}}" placeholder="personal" required>
-		</div>
-		<div class="field">
-			<label for="type">Type</label>
-			<select id="type" name="type">
-				<option value="calendar">Calendar</option>
-				<option value="addressbook">Address book</option>
-			</select>
-		</div>
-		<div class="field">
-			<label for="display_name_c">Display name</label>
-			<input type="text" id="display_name_c" name="display_name" value="{{.Form.DisplayName}}">
+			<label for="password">New password</label>
+			<input type="password" id="password" name="password" autocomplete="new-password" required>
 		</div>
 	</div>
-	<button type="submit" class="primary">Create collection</button>
+	<p class="hint">Signs this user out of the admin interface everywhere. Their clients will
+		ask for the new password on the next sync.</p>
+	<div class="actions-bar"><button type="submit">Set password</button></div>
 </form>
 
-<h2>Delete user</h2>
-<div class="card">
-	<p class="muted">Removes {{.Subject.Username}} along with every collection and object they own. This cannot be undone.</p>
+<h2>Danger zone</h2>
+<div class="card pad">
 	{{if .IsSelf}}
-		<p class="muted">You cannot delete the account you are signed in as.</p>
+		<p class="muted" style="margin:0">You cannot delete the account you are signed in as.</p>
 	{{else}}
+		<p class="muted" style="margin:0 0 1rem">Deleting {{.Subject.Username}} removes every collection
+			and object they own. This cannot be undone.</p>
 		<form method="post" action="/admin/users/{{.Subject.ID}}/delete">
 			<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-			<button class="danger" hx-post="/admin/users/{{.Subject.ID}}/delete"
-			        hx-confirm="Delete {{.Subject.Username}} and everything they own?">Delete this user</button>
+			<button class="danger js-only" hx-post="/admin/users/{{.Subject.ID}}/delete"
+			        hx-confirm="Delete {{.Subject.Username}} and everything they own?">
+				{{template "icon-trash" .}} Delete user
+			</button>
+			<a class="button danger no-js-only" href="/admin/users/{{.Subject.ID}}/delete">
+				{{template "icon-trash" .}} Delete user
+			</a>
 		</form>
-		<p class="muted"><a href="/admin/users/{{.Subject.ID}}/delete">Confirm without JavaScript</a></p>
 	{{end}}
 </div>
 {{end}}

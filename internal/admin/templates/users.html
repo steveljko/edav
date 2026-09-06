@@ -1,34 +1,51 @@
 {{define "content"}}
-<h1>Users</h1>
-<p class="lede">Accounts that can sign in to a DAV client.</p>
-
-<div class="card">
-	<table>
-		<thead><tr><th>Username</th><th>Name</th><th>Email</th><th>Collections</th><th></th></tr></thead>
-		<tbody>
-		{{range .Users}}
-			<tr>
-				<td><a href="/admin/users/{{.User.ID}}">{{.User.Username}}</a>
-					{{if .User.IsAdmin}}<span class="badge">admin</span>{{end}}</td>
-				<td>{{if .User.DisplayName}}{{.User.DisplayName}}{{else}}<span class="muted">—</span>{{end}}</td>
-				<td>{{if .User.Email}}{{.User.Email}}{{else}}<span class="muted">—</span>{{end}}</td>
-				<td class="muted">{{.Calendars}} calendars, {{.AddressBooks}} address books</td>
-				<td class="actions"><a class="button" href="/admin/users/{{.User.ID}}">Edit</a></td>
-			</tr>
-		{{else}}
-			<tr><td colspan="5" class="empty">No users yet.</td></tr>
-		{{end}}
-		</tbody>
-	</table>
+<div class="page-head">
+	<div>
+		<h1>Users</h1>
+		<p class="subtitle">Accounts that can sign in to a calendar or contacts client.</p>
+	</div>
+	<a class="button primary" href="#add-user">{{template "icon-plus" .}} Add user</a>
 </div>
 
-<h2>Add a user</h2>
-<form method="post" action="/admin/users" class="card">
+<div class="stats">
+	<div class="stat"><div class="value">{{len .Users}}</div><div class="label">Users</div></div>
+	<div class="stat"><div class="value">{{.CalendarCount}}</div><div class="label">Calendars</div></div>
+	<div class="stat"><div class="value">{{.AddressBookCount}}</div><div class="label">Address books</div></div>
+</div>
+
+<div class="card">
+	<div class="list">
+	{{range .Users}}
+		<a class="row-item" href="/admin/users/{{.User.ID}}">
+			<span class="avatar">{{initials .User.Username}}</span>
+			<span class="row-main">
+				<span class="row-title">{{if .User.DisplayName}}{{.User.DisplayName}}{{else}}{{.User.Username}}{{end}}</span>
+				<span class="row-sub">
+					{{.User.Username}}{{if .User.Email}} · {{.User.Email}}{{end}} ·
+					{{.Calendars}} calendar{{if ne .Calendars 1}}s{{end}},
+					{{.AddressBooks}} address book{{if ne .AddressBooks 1}}s{{end}}
+				</span>
+			</span>
+			{{if .User.IsAdmin}}<span class="badge accent">admin</span>{{end}}
+		</a>
+	{{else}}
+		<div class="empty">
+			<div class="headline">No users yet</div>
+			<p>Add one below, then give it the server address from Client setup.</p>
+		</div>
+	{{end}}
+	</div>
+</div>
+
+<h2 id="add-user">Add a user</h2>
+<form method="post" action="/admin/users" class="card pad">
 	<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 	<div class="row">
 		<div class="field">
 			<label for="new-username">Username</label>
-			<input type="text" id="new-username" name="username" value="{{.Form.Username}}" required>
+			<input type="text" id="new-username" name="username" value="{{.Form.Username}}"
+			       autocapitalize="none" spellcheck="false" required>
+			<p class="hint">Appears in this account's URLs, so keep it simple.</p>
 		</div>
 		<div class="field">
 			<label for="new-display">Display name</label>
@@ -43,8 +60,9 @@
 		<div class="field">
 			<label for="new-password">Password</label>
 			<input type="password" id="new-password" name="password" autocomplete="new-password" required>
+			<p class="hint">At least 8 characters.</p>
 		</div>
 	</div>
-	<button type="submit" class="primary">Create user</button>
+	<div class="actions-bar"><button type="submit" class="primary">Create user</button></div>
 </form>
 {{end}}

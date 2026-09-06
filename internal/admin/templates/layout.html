@@ -3,30 +3,73 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{.Title}} — edav</title>
+<title>{{.Title}} · edav</title>
 <link rel="stylesheet" href="/admin/static/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%235b57d1'/><text x='16' y='23' font-family='system-ui' font-size='19' font-weight='700' fill='white' text-anchor='middle'>e</text></svg>">
 <script src="/admin/static/htmx.min.js" defer></script>
+<script src="/admin/static/app.js" defer></script>
 </head>
 <body>
 {{if .User}}
-<header class="site">
-	<div class="inner">
-		<span class="brand">edav</span>
-		<nav>
-			<a href="/admin/"{{if eq .Nav "users"}} aria-current="page"{{end}}>Users</a>
-			<a href="/admin/setup"{{if eq .Nav "setup"}} aria-current="page"{{end}}>Client setup</a>
+<div class="shell">
+	<aside class="sidebar">
+		<a class="brand" href="/admin/"><span class="mark">e</span> edav</a>
+
+		<nav class="nav">
+			<a href="/admin/"{{if eq .Nav "users"}} aria-current="page"{{end}}>
+				{{template "icon-users" .}} Users
+			</a>
+			<a href="/admin/setup"{{if eq .Nav "setup"}} aria-current="page"{{end}}>
+				{{template "icon-link" .}} Client setup
+			</a>
 		</nav>
-		<form method="post" action="/admin/logout">
-			<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-			<button class="link">Sign out {{.User.Username}}</button>
-		</form>
-	</div>
-</header>
+
+		<div class="sidebar-foot">
+			<div class="who">
+				<span class="avatar">{{initials .User.Username}}</span>
+				<span>
+					<div class="name">{{.User.Username}}</div>
+					<div class="role">Administrator</div>
+				</span>
+			</div>
+			<form method="post" action="/admin/logout">
+				<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+				<button class="link">Sign out</button>
+			</form>
+		</div>
+	</aside>
+
+	<main>
+		<div class="wrap">
+			{{template "flashes" .}}
+			{{template "content" .}}
+		</div>
+	</main>
+</div>
+{{else}}
+<div class="auth"><div class="auth-inner">
+	{{template "flashes" .}}
+	{{template "content" .}}
+</div></div>
 {{end}}
-<main>
-{{if .Error}}<p class="notice error">{{.Error}}</p>{{end}}
-{{if .Message}}<p class="notice ok">{{.Message}}</p>{{end}}
-{{template "content" .}}
-</main>
 </body>
 </html>{{end}}
+
+{{define "flashes"}}
+{{if .Error}}<p class="notice error">{{template "icon-alert" .}}<span>{{.Error}}</span></p>{{end}}
+{{if .Message}}<p class="notice ok">{{template "icon-check" .}}<span>{{.Message}}</span></p>{{end}}
+{{end}}
+
+{{define "icon-users"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>{{end}}
+
+{{define "icon-link"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>{{end}}
+
+{{define "icon-alert"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>{{end}}
+
+{{define "icon-check"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>{{end}}
+
+{{define "icon-search"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>{{end}}
+
+{{define "icon-trash"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>{{end}}
+
+{{define "icon-plus"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>{{end}}

@@ -1,17 +1,83 @@
 {{define "content"}}
-<h1>{{if .Collection.DisplayName}}{{.Collection.DisplayName}}{{else}}{{.Collection.URI}}{{end}}</h1>
-<p class="lede"><a href="/admin/users/{{.Subject.ID}}">{{.Subject.Username}}</a> ·
-	{{if eq .Collection.Type "calendar"}}Calendar{{else}}Address book{{end}} ·
-	{{.ObjectCount}} object{{if ne .ObjectCount 1}}s{{end}}</p>
+<p class="crumb"><a href="/admin/">Users</a> <span>/</span>
+	<a href="/admin/users/{{.Subject.ID}}">{{.Subject.Username}}</a> <span>/</span>
+	<span>{{if .Collection.DisplayName}}{{.Collection.DisplayName}}{{else}}{{.Collection.URI}}{{end}}</span></p>
 
-<form method="post" action="/admin/collections/{{.Collection.ID}}" class="card">
+<div class="page-head">
+	<div style="display:flex;align-items:center;gap:.9rem">
+		<span class="avatar square {{if eq .Collection.Type "calendar"}}calendar{{else}}contacts{{end}}"
+		      style="width:2.75rem;height:2.75rem;font-size:1rem">
+			{{if eq .Collection.Type "calendar"}}31{{else}}@{{end}}
+		</span>
+		<div>
+			<h1>{{if .Collection.DisplayName}}{{.Collection.DisplayName}}{{else}}{{.Collection.URI}}{{end}}</h1>
+			<p class="subtitle">
+				{{if eq .Collection.Type "calendar"}}Calendar{{else}}Address book{{end}} ·
+				{{.ObjectCount}} item{{if ne .ObjectCount 1}}s{{end}}
+			</p>
+		</div>
+	</div>
+	{{if .IsAddressBook}}
+	<a class="button primary" href="/admin/collections/{{.Collection.ID}}/contacts/new">
+		{{template "icon-plus" .}} Add a contact
+	</a>
+	{{end}}
+</div>
+
+{{if .IsAddressBook}}
+<h2>Contacts</h2>
+{{if .Contacts}}
+<div class="search js-only">
+	{{template "icon-search" .}}
+	<label for="contact-filter" class="visually-hidden">Search contacts</label>
+	<input type="search" id="contact-filter" data-filter="contact-list" placeholder="Search contacts" autocomplete="off">
+</div>
+{{end}}
+<div class="card">
+	<div class="list" id="contact-list">
+	{{range .Contacts}}
+		<a class="row-item" data-search="{{lower .Name}} {{lower .URI}}"
+		   href="/admin/collections/{{$.Collection.ID}}/contacts/{{.URI}}">
+			<span class="avatar">{{initials .Name}}</span>
+			<span class="row-main">
+				<span class="row-title">{{.Name}}</span>
+				<span class="row-sub mono">{{.URI}}</span>
+			</span>
+		</a>
+	{{else}}
+		<div class="empty">
+			<div class="headline">No contacts yet</div>
+			<p>Add one here, or let a client sync them in.</p>
+			<a class="button primary" href="/admin/collections/{{.Collection.ID}}/contacts/new">Add a contact</a>
+		</div>
+	{{end}}
+		<div class="empty" data-filter-empty hidden>
+			<div class="headline">Nothing matches</div>
+			<p>Try a different search.</p>
+		</div>
+	</div>
+</div>
+{{end}}
+
+<h2>Address for clients</h2>
+<div class="card pad">
+	<div class="copy">
+		<code id="collection-url">{{.CollectionURL}}</code>
+		<button type="button" class="small js-only" data-copy="collection-url">Copy</button>
+	</div>
+	<p class="hint">Most clients only need the server address from
+		<a href="/admin/setup">Client setup</a>; this is the direct link.</p>
+</div>
+
+<h2>Settings</h2>
+<form method="post" action="/admin/collections/{{.Collection.ID}}" class="card pad">
 	<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 	<div class="row">
 		<div class="field">
-			<label for="display_name">Display name</label>
+			<label for="display_name">Name</label>
 			<input type="text" id="display_name" name="display_name" value="{{.Collection.DisplayName}}">
 		</div>
-		<div class="field">
+		<div class="field narrow">
 			<label for="color">Colour</label>
 			<input type="color" id="color" name="color" value="{{.ColorValue}}">
 		</div>
@@ -20,47 +86,23 @@
 		<label for="description">Description</label>
 		<textarea id="description" name="description">{{.Collection.Description}}</textarea>
 	</div>
-	<button type="submit" class="primary">Save changes</button>
+	<div class="actions-bar"><button type="submit" class="primary">Save changes</button></div>
 </form>
 
-{{if .IsAddressBook}}
-<h2>Contacts</h2>
-<div class="card">
-	<table>
-		<thead><tr><th>Name</th><th>File</th><th></th></tr></thead>
-		<tbody>
-		{{range .Contacts}}
-			<tr>
-				<td><a href="/admin/collections/{{$.Collection.ID}}/contacts/{{.URI}}">{{.Name}}</a></td>
-				<td><code>{{.URI}}</code></td>
-				<td class="actions">
-					<a class="button" href="/admin/collections/{{$.Collection.ID}}/contacts/{{.URI}}">Edit</a>
-				</td>
-			</tr>
-		{{else}}
-			<tr><td colspan="3" class="empty">No contacts yet.</td></tr>
-		{{end}}
-		</tbody>
-	</table>
-</div>
-<p><a class="button" href="/admin/collections/{{.Collection.ID}}/contacts/new">Add a contact</a></p>
-{{end}}
-
-<h2>Address for clients</h2>
-<div class="card">
-	<pre class="url">{{.CollectionURL}}</pre>
-	<p class="muted">Most clients only need the server address from
-		<a href="/admin/setup">Client setup</a>; this is the direct link.</p>
-</div>
-
-<h2>Delete collection</h2>
-<div class="card">
-	<p class="muted">Removes this collection and all {{.ObjectCount}} object{{if ne .ObjectCount 1}}s{{end}} in it. This cannot be undone.</p>
+<h2>Danger zone</h2>
+<div class="card pad">
+	<p class="muted" style="margin:0 0 1rem">Deleting this collection removes all
+		{{.ObjectCount}} item{{if ne .ObjectCount 1}}s{{end}} in it, on this server and on every
+		client that syncs it. This cannot be undone.</p>
 	<form method="post" action="/admin/collections/{{.Collection.ID}}/delete">
 		<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-		<button class="danger" hx-post="/admin/collections/{{.Collection.ID}}/delete"
-		        hx-confirm="Delete this collection and its {{.ObjectCount}} object{{if ne .ObjectCount 1}}s{{end}}?">Delete this collection</button>
+		<button class="danger js-only" hx-post="/admin/collections/{{.Collection.ID}}/delete"
+		        hx-confirm="Delete this collection and its {{.ObjectCount}} item{{if ne .ObjectCount 1}}s{{end}}?">
+			{{template "icon-trash" .}} Delete collection
+		</button>
+		<a class="button danger no-js-only" href="/admin/collections/{{.Collection.ID}}/delete">
+			{{template "icon-trash" .}} Delete collection
+		</a>
 	</form>
-	<p class="muted"><a href="/admin/collections/{{.Collection.ID}}/delete">Confirm without JavaScript</a></p>
 </div>
 {{end}}

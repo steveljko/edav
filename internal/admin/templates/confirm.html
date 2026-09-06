@@ -1,12 +1,15 @@
 {{define "content"}}
-<div class="login">
-	<h1>{{.Confirm.Title}}</h1>
+<div class="confirm">
 	<div class="card">
+		<div class="icon">{{template "icon-alert" .}}</div>
+		<h1>{{.Confirm.Title}}</h1>
 		<p>{{.Confirm.Body}}</p>
-		<form method="post" action="{{.Confirm.Action}}" class="stack">
+		<form method="post" action="{{.Confirm.Action}}">
 			<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-			<button type="submit" class="danger">{{.Confirm.Verb}}</button>
-			<a class="button" href="{{.Confirm.Cancel}}">Cancel</a>
+			<div class="actions-bar" style="margin-top:0">
+				<button type="submit" class="solid-danger">{{.Confirm.Verb}}</button>
+				<a class="button" href="{{.Confirm.Cancel}}">Cancel</a>
+			</div>
 		</form>
 	</div>
 </div>

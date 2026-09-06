@@ -43,6 +43,8 @@ func (s *Server) usersPage(r *http.Request, data pageData) (pageData, error) {
 			}
 		}
 		rows = append(rows, row)
+		data.CalendarCount += row.Calendars
+		data.AddressBookCount += row.AddressBooks
 	}
 
 	data.Users = rows

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 
 	"github.com/steveljko/edav/internal/auth"
 	"github.com/steveljko/edav/internal/storage"
@@ -23,16 +24,43 @@ var pages = []string{
 	"contact.html",
 }
 
+// funcs are the few helpers the templates need. Anything more involved is
+// computed in Go and handed over as data.
+var funcs = template.FuncMap{
+	"initials": initials,
+	"lower":    strings.ToLower,
+}
+
 func (s *Server) parseTemplates() error {
 	s.templates = make(map[string]*template.Template, len(pages))
 	for _, name := range pages {
-		t, err := template.ParseFS(templateFS, "templates/layout.html", "templates/"+name)
+		t, err := template.New(name).Funcs(funcs).
+			ParseFS(templateFS, "templates/layout.html", "templates/"+name)
 		if err != nil {
 			return fmt.Errorf("admin: parse %s: %w", name, err)
 		}
 		s.templates[name] = t
 	}
 	return nil
+}
+
+// initials reduces a name to the one or two letters shown in an avatar.
+func initials(name string) string {
+	fields := strings.Fields(name)
+	switch len(fields) {
+	case 0:
+		return "?"
+	case 1:
+		r := []rune(fields[0])
+		if len(r) == 1 {
+			return strings.ToUpper(string(r[0]))
+		}
+		return strings.ToUpper(string(r[0])) + strings.ToLower(string(r[1]))
+	default:
+		first := []rune(fields[0])
+		last := []rune(fields[len(fields)-1])
+		return strings.ToUpper(string(first[0]) + string(last[0]))
+	}
 }
 
 // formValues carries submitted input back into a re-rendered form, so a

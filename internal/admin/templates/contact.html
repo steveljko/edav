@@ -1,102 +1,143 @@
 {{define "content"}}
-<h1>{{if .ContactURI}}{{.Contact.DisplayName}}{{else}}New contact{{end}}</h1>
-<p class="lede"><a href="/admin/collections/{{.Collection.ID}}">{{if .Collection.DisplayName}}{{.Collection.DisplayName}}{{else}}{{.Collection.URI}}{{end}}</a>
-	· {{.Subject.Username}}</p>
+<p class="crumb"><a href="/admin/">Users</a> <span>/</span>
+	<a href="/admin/users/{{.Subject.ID}}">{{.Subject.Username}}</a> <span>/</span>
+	<a href="/admin/collections/{{.Collection.ID}}">{{if .Collection.DisplayName}}{{.Collection.DisplayName}}{{else}}{{.Collection.URI}}{{end}}</a>
+	<span>/</span> <span>{{if .ContactURI}}{{.Contact.DisplayName}}{{else}}New contact{{end}}</span></p>
+
+<div class="page-head">
+	<div style="display:flex;align-items:center;gap:.9rem">
+		<span class="avatar" style="width:2.75rem;height:2.75rem;font-size:.95rem">
+			{{if .ContactURI}}{{initials .Contact.DisplayName}}{{else}}+{{end}}
+		</span>
+		<div>
+			<h1>{{if .ContactURI}}{{.Contact.DisplayName}}{{else}}New contact{{end}}</h1>
+			{{if .ContactURI}}<p class="subtitle mono">{{.ContactURI}}</p>{{end}}
+		</div>
+	</div>
+</div>
 
 {{if .ContactURI}}
-<p class="notice ok">Only the fields below are rewritten when you save. Anything else this
-contact carries — photos, custom labels, fields added by a phone — is left exactly as it is.</p>
+<p class="notice info">{{template "icon-check" .}}<span>Only the fields below are rewritten when you
+save. Anything else this contact carries — a photo, custom labels, fields added by a phone —
+is left exactly as it is.</span></p>
 {{end}}
 
-<form method="post" action="{{.ContactAction}}" class="card">
+<form method="post" action="{{.ContactAction}}">
 	<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 	{{if .Contact.UID}}<input type="hidden" name="uid" value="{{.Contact.UID}}">{{end}}
 
-	<div class="row">
-		<div class="field">
-			<label for="given_name">First name</label>
-			<input type="text" id="given_name" name="given_name" value="{{.Contact.GivenName}}" autofocus>
+	<h2>Name</h2>
+	<div class="card pad">
+		<div class="row">
+			<div class="field">
+				<label for="given_name">First name</label>
+				<input type="text" id="given_name" name="given_name" value="{{.Contact.GivenName}}" autofocus>
+			</div>
+			<div class="field">
+				<label for="family_name">Last name</label>
+				<input type="text" id="family_name" name="family_name" value="{{.Contact.FamilyName}}">
+			</div>
 		</div>
 		<div class="field">
-			<label for="family_name">Last name</label>
-			<input type="text" id="family_name" name="family_name" value="{{.Contact.FamilyName}}">
+			<label for="formatted_name">Display name</label>
+			<input type="text" id="formatted_name" name="formatted_name" value="{{.Contact.FormattedName}}"
+			       placeholder="Built from the names above if left blank">
 		</div>
-	</div>
-
-	<div class="field">
-		<label for="formatted_name">Display name</label>
-		<input type="text" id="formatted_name" name="formatted_name" value="{{.Contact.FormattedName}}"
-		       placeholder="Left blank, this is built from the names above">
-	</div>
-
-	<div class="row">
-		<div class="field">
-			<label for="organisation">Organisation</label>
-			<input type="text" id="organisation" name="organisation" value="{{.Contact.Organisation}}">
-		</div>
-		<div class="field">
-			<label for="title">Job title</label>
-			<input type="text" id="title" name="title" value="{{.Contact.Title}}">
+		<div class="row">
+			<div class="field">
+				<label for="organisation">Organisation</label>
+				<input type="text" id="organisation" name="organisation" value="{{.Contact.Organisation}}">
+			</div>
+			<div class="field">
+				<label for="title">Job title</label>
+				<input type="text" id="title" name="title" value="{{.Contact.Title}}">
+			</div>
 		</div>
 	</div>
 
 	<h2>Phone</h2>
-	{{range $i, $p := .Contact.Phones}}
-	<div class="row">
-		<div class="field">
-			<label for="phone-{{$i}}" class="visually-hidden">Number</label>
-			<input type="text" id="phone-{{$i}}" name="phone_value" value="{{$p.Value}}" placeholder="+1 555 0100">
+	<div class="card pad">
+		<div id="phone-rows">
+		{{range $i, $p := .Contact.Phones}}
+			<div class="repeat-row">
+				<div class="field value">
+					<label for="phone-{{$i}}" class="visually-hidden">Number</label>
+					<input type="text" id="phone-{{$i}}" name="phone_value" value="{{$p.Value}}" placeholder="+1 555 0100">
+				</div>
+				<div class="field kind">
+					<label for="phone-type-{{$i}}" class="visually-hidden">Type</label>
+					<select id="phone-type-{{$i}}" name="phone_type">
+						{{range $t := $.TypeOptions}}<option value="{{$t}}"{{if eq $t $p.Type}} selected{{end}}>{{$t}}</option>{{end}}
+					</select>
+				</div>
+				<button type="button" class="ghost remove js-only" data-remove-row aria-label="Remove this number">
+					{{template "icon-trash" $}}
+				</button>
+			</div>
+		{{end}}
 		</div>
-		<div class="field type">
-			<label for="phone-type-{{$i}}" class="visually-hidden">Type</label>
-			<select id="phone-type-{{$i}}" name="phone_type">
-				{{range $t := $.TypeOptions}}<option value="{{$t}}"{{if eq $t $p.Type}} selected{{end}}>{{$t}}</option>{{end}}
-			</select>
-		</div>
+		<button type="button" class="small js-only" data-add-row="phone-rows">{{template "icon-plus" .}} Add number</button>
+		<p class="hint no-js-only">Clearing a value removes it. Save and reopen for another blank row.</p>
 	</div>
-	{{end}}
 
 	<h2>Email</h2>
-	{{range $i, $p := .Contact.Emails}}
-	<div class="row">
-		<div class="field">
-			<label for="email-{{$i}}" class="visually-hidden">Address</label>
-			<input type="email" id="email-{{$i}}" name="email_value" value="{{$p.Value}}" placeholder="name@example.com">
+	<div class="card pad">
+		<div id="email-rows">
+		{{range $i, $p := .Contact.Emails}}
+			<div class="repeat-row">
+				<div class="field value">
+					<label for="email-{{$i}}" class="visually-hidden">Address</label>
+					<input type="email" id="email-{{$i}}" name="email_value" value="{{$p.Value}}" placeholder="name@example.com">
+				</div>
+				<div class="field kind">
+					<label for="email-type-{{$i}}" class="visually-hidden">Type</label>
+					<select id="email-type-{{$i}}" name="email_type">
+						{{range $t := $.TypeOptions}}<option value="{{$t}}"{{if eq $t $p.Type}} selected{{end}}>{{$t}}</option>{{end}}
+					</select>
+				</div>
+				<button type="button" class="ghost remove js-only" data-remove-row aria-label="Remove this address">
+					{{template "icon-trash" $}}
+				</button>
+			</div>
+		{{end}}
 		</div>
-		<div class="field type">
-			<label for="email-type-{{$i}}" class="visually-hidden">Type</label>
-			<select id="email-type-{{$i}}" name="email_type">
-				{{range $t := $.TypeOptions}}<option value="{{$t}}"{{if eq $t $p.Type}} selected{{end}}>{{$t}}</option>{{end}}
-			</select>
-		</div>
+		<button type="button" class="small js-only" data-add-row="email-rows">{{template "icon-plus" .}} Add address</button>
+		<p class="hint no-js-only">Clearing a value removes it. Save and reopen for another blank row.</p>
 	</div>
-	{{end}}
-	<p class="muted">Clearing a value removes it. Save and reopen for another blank row.</p>
 
 	<h2>Other</h2>
-	<div class="field">
-		<label for="url">Website</label>
-		<input type="text" id="url" name="url" value="{{.Contact.URL}}">
-	</div>
-	<div class="field">
-		<label for="note">Note</label>
-		<textarea id="note" name="note">{{.Contact.Note}}</textarea>
+	<div class="card pad">
+		<div class="field">
+			<label for="url">Website</label>
+			<input type="text" id="url" name="url" value="{{.Contact.URL}}" placeholder="https://">
+		</div>
+		<div class="field">
+			<label for="note">Note</label>
+			<textarea id="note" name="note">{{.Contact.Note}}</textarea>
+		</div>
 	</div>
 
-	<button type="submit" class="primary">{{if .ContactURI}}Save contact{{else}}Create contact{{end}}</button>
-	<a class="button" href="/admin/collections/{{.Collection.ID}}">Cancel</a>
+	<div class="actions-bar">
+		<button type="submit" class="primary">{{if .ContactURI}}Save contact{{else}}Create contact{{end}}</button>
+		<a class="button" href="/admin/collections/{{.Collection.ID}}">Cancel</a>
+	</div>
 </form>
 
 {{if .ContactURI}}
-<h2>Delete contact</h2>
-<div class="card">
+<h2>Danger zone</h2>
+<div class="card pad">
 	<form method="post" action="/admin/collections/{{.Collection.ID}}/contacts/{{.ContactURI}}/delete">
 		<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-		<button class="danger"
+		<button class="danger js-only"
 		        hx-post="/admin/collections/{{.Collection.ID}}/contacts/{{.ContactURI}}/delete"
-		        hx-confirm="Delete {{.Contact.DisplayName}}?">Delete this contact</button>
+		        hx-confirm="Delete {{.Contact.DisplayName}}?">
+			{{template "icon-trash" .}} Delete contact
+		</button>
+		<a class="button danger no-js-only"
+		   href="/admin/collections/{{.Collection.ID}}/contacts/{{.ContactURI}}/delete">
+			{{template "icon-trash" .}} Delete contact
+		</a>
 	</form>
-	<p class="muted"><a href="/admin/collections/{{.Collection.ID}}/contacts/{{.ContactURI}}/delete">Confirm without JavaScript</a></p>
 </div>
 {{end}}
 {{end}}
