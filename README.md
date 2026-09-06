@@ -8,81 +8,147 @@ There is nothing to install alongside it — no PHP, no separate database server
 
 ## Status
 
-Early. CardDAV and CalDAV both work: collection creation and deletion, object
-PUT/GET/DELETE, multiget, property and time-range queries, principal discovery
-and the well-known redirects. Recurring events are expanded with EXDATE,
-RDATE and RECURRENCE-ID overrides, honouring embedded VTIMEZONE definitions.
-
-Incremental synchronisation works through `sync-collection`, including
-reporting deletions to a client whose token predates them.
-
-There is a web interface at `/admin` for managing users and collections, and a
-client setup page listing the exact addresses to paste into each client.
+CardDAV and CalDAV both work: collection creation and deletion, object
+PUT/GET/DELETE, multiget, property and time-range queries, principal discovery,
+the well-known redirects, and incremental synchronisation through
+`sync-collection`. Recurring events are expanded with EXDATE, RDATE and
+RECURRENCE-ID overrides, honouring embedded VTIMEZONE definitions.
 
 Not yet built: scheduling (RFC 6638 invitations and free/busy), which is out of
-scope for v1, and packaging.
+scope for v1.
 
-## Running
+Objects are stored exactly as the client sends them. Properties this server does
+not model, including vendor `X-` extensions, are preserved byte for byte, and an
+ETag changes only when those bytes do.
+
+## Install
+
+### Docker
 
 ```sh
-EDAV_ADMIN_PASSWORD=… make run
-curl localhost:8080/healthz
+docker run -d --name edav \
+  -p 8080:8080 \
+  -v edav-data:/data \
+  -e EDAV_BASE_URL=https://dav.example.com \
+  -e EDAV_ADMIN_PASSWORD=… \
+  ghcr.io/steveljko/edav:latest
 ```
 
-## Administration
+`docker-compose.yml` in this repository is a working example. The image is built
+from `scratch` and runs as UID 65532; the database lives in the `/data` volume.
 
-Open `/admin` and sign in with `EDAV_ADMIN_USERNAME` and `EDAV_ADMIN_PASSWORD`.
-From there you can add users, reset passwords, and create or edit collections.
-The **Client setup** page shows the addresses to give each client.
+### From source
 
-The admin session cookie is `Secure` by default, which browsers refuse over
-plain HTTP. For local development set `EDAV_SECURE_COOKIES=false`.
+Go 1.26 or newer. No CGO, and no build step for the assets.
 
-## Client setup
-
-Point the client at the server root and let it discover the rest:
-
-```
-http://localhost:8080/
+```sh
+go build -o bin/dav ./cmd/dav
+EDAV_ADMIN_PASSWORD=… ./bin/dav
 ```
 
-Sign in with the admin username and password. The URLs behind discovery are:
+Or `make build`, `make test`, `make lint`, `make run`.
 
-| Resource | Path |
-| --- | --- |
-| Well-known | `/.well-known/carddav`, `/.well-known/caldav` (301 to the DAV root) |
-| DAV root | `/dav/` |
-| Principal | `/dav/principals/{user}/` |
-| Address book home | `/dav/addressbooks/{user}/` |
-| Address book | `/dav/addressbooks/{user}/{name}/` |
-| Calendar home | `/dav/calendars/{user}/` |
-| Calendar | `/dav/calendars/{user}/{name}/` |
-
-`/.well-known/carddav` is served without authentication on purpose: iOS and
-macOS probe it before they have credentials to send, and answering `401` there
-ends discovery without showing the user a useful error.
-
-The principal advertises both home sets, so a client that discovers one
-protocol finds the other from the same response.
-
-Contacts and events are stored exactly as the client sends them. Properties this server
-does not model, including vendor `X-` extensions, are preserved byte for byte
-and the ETag changes only when those bytes do.
-
-## Configuration
+## Configure
 
 All configuration comes from the environment and is validated at startup; the
-server refuses to start rather than failing at the first request.
+server reports every problem it finds and refuses to start, rather than failing
+at the first request.
 
 | Variable | Default | Description |
 | --- | --- | --- |
 | `EDAV_ADDR` | `:8080` | Listen address, `host:port` |
 | `EDAV_DB_PATH` | `edav.db` | SQLite database file |
-| `EDAV_BASE_URL` | — | Absolute public URL, used for client setup instructions |
+| `EDAV_BASE_URL` | — | Absolute public URL. Set it behind a proxy |
 | `EDAV_LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
 | `EDAV_ADMIN_USERNAME` | `admin` | Admin account username |
 | `EDAV_ADMIN_PASSWORD` | — | Required, at least 8 characters |
 | `EDAV_CALDAV_ENABLED` | `true` | Serve calendars |
 | `EDAV_CARDDAV_ENABLED` | `true` | Serve address books |
 | `EDAV_WEBDAV_ENABLED` | `false` | Serve plain WebDAV |
-| `EDAV_SECURE_COOKIES` | `true` | Secure attribute on the admin session cookie; set `false` only for local plain-HTTP development |
+| `EDAV_SECURE_COOKIES` | `true` | `Secure` on the admin session cookie |
+
+`EDAV_ADMIN_PASSWORD` seeds the admin account on first start. It does not
+overwrite the password afterwards, so a password changed in the admin interface
+survives a restart.
+
+`GET /healthz` returns 200 once the database is reachable. The binary can probe
+it for you with `dav -healthcheck`, which is what the container's `HEALTHCHECK`
+runs, since a `scratch` image has no shell.
+
+## Administration
+
+Open `/admin` and sign in with `EDAV_ADMIN_USERNAME` and `EDAV_ADMIN_PASSWORD`.
+From there you can add users, reset passwords, and create or edit collections.
+The **Client setup** page shows the exact addresses to give each client.
+
+The session cookie is `Secure` by default, which browsers refuse to send over
+plain HTTP. To sign in locally without TLS, set `EDAV_SECURE_COOKIES=false`.
+
+## Client setup
+
+Point the client at the server root and let it discover the rest:
+
+```
+https://dav.example.com/
+```
+
+Sign in with the account's own username and password. The paths behind
+discovery are:
+
+| Resource | Path |
+| --- | --- |
+| Well-known | `/.well-known/carddav`, `/.well-known/caldav` |
+| DAV root | `/dav/` |
+| Principal | `/dav/principals/{user}/` |
+| Calendar home | `/dav/calendars/{user}/` |
+| Calendar | `/dav/calendars/{user}/{name}/` |
+| Address book home | `/dav/addressbooks/{user}/` |
+| Address book | `/dav/addressbooks/{user}/{name}/` |
+
+The principal advertises both home sets, so a client that discovers one protocol
+finds the other from the same response.
+
+- **iOS and macOS** — Settings → Calendar (or Contacts) → Accounts → Add Account
+  → Other → Add CalDAV (or CardDAV) Account. Give it the bare host name.
+- **DAVx⁵** — Add account → Login with URL and user name, using the server root.
+  It finds calendars and address books from one login.
+- **Thunderbird** — point CalDAV at the calendar home and CardDAV at the address
+  book home; it lists the collections it finds there.
+
+## The well-known redirect requirement
+
+Clients do not ask for `/dav/`. They ask the **root of the domain** for
+`/.well-known/caldav` and `/.well-known/carddav` and follow the redirect
+(RFC 6764 §6). This server answers both with a 301 to its DAV root.
+
+Two things break this, and both are worth checking first when a client refuses
+to connect for no visible reason.
+
+**The well-known paths must be served from the domain root.** If you host edav
+under a subpath, a request to `https://example.com/.well-known/caldav` must still
+reach it. With nginx:
+
+```nginx
+location /.well-known/caldav  { return 301 https://example.com/dav/; }
+location /.well-known/carddav { return 301 https://example.com/dav/; }
+
+location /dav/   { proxy_pass http://127.0.0.1:8080; }
+location /admin/ { proxy_pass http://127.0.0.1:8080; }
+```
+
+**They must not require authentication.** iOS and macOS probe these before they
+have credentials to send, and a `401` there ends discovery with no useful error
+shown to the user. This server serves both redirects outside its authentication
+middleware on purpose; if you put your own auth in front of it, exempt these two
+paths.
+
+Set `EDAV_BASE_URL` to the address clients actually reach. Behind a proxy the
+request arrives on an internal address, and without this the setup page will
+confidently show a URL nothing can connect to.
+
+## Attribution
+
+`internal/dav` contains a fork of
+[go-webdav](https://github.com/emersion/go-webdav) by Simon Ser, MIT licensed;
+its licence is kept at `internal/dav/LICENSE`, and `internal/dav/README.md`
+records what was changed and why.
