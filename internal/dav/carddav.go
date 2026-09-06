@@ -251,12 +251,48 @@ func (b *CardDAVBackend) ResourceTypeAtPath(reqPath string) (carddav.ResourceTyp
 	}
 }
 
+// SyncCollection answers a sync-collection REPORT with everything that changed
+// after the client's token, including the members that have since been removed.
+func (b *CardDAVBackend) SyncCollection(ctx context.Context, path string, query *carddav.SyncQuery) (*carddav.SyncResponse, error) {
+	u, c, err := b.resolveAddressBook(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+
+	var token string
+	var limit int
+	var req *carddav.AddressDataRequest
+	if query != nil {
+		token, limit = query.SyncToken, query.Limit
+		req = &query.DataRequest
+	}
+
+	changes, err := collectSync(ctx, b.DB, c, token, limit)
+	if err != nil {
+		return nil, syncTokenError(err)
+	}
+
+	resp := &carddav.SyncResponse{SyncToken: changes.Token}
+	for _, obj := range changes.Updated {
+		ao, err := b.addressObject(u.Username, c, obj, req, false)
+		if err != nil {
+			return nil, err
+		}
+		resp.Updated = append(resp.Updated, ao)
+	}
+	for _, uri := range changes.Deleted {
+		resp.Deleted = append(resp.Deleted, b.Paths.AddressObject(u.Username, c.URI, uri))
+	}
+	return resp, nil
+}
+
 func (b *CardDAVBackend) addressBook(username string, c *storage.Collection) carddav.AddressBook {
 	return carddav.AddressBook{
 		Path:            b.Paths.AddressBook(username, c.URI),
 		Name:            c.DisplayName,
 		Description:     c.Description,
 		MaxResourceSize: carddav.MaxResourceSize,
+		SyncToken:       encodeSyncToken(c.SyncSeq),
 	}
 }
 

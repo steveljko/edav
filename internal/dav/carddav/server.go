@@ -39,6 +39,11 @@ type Backend interface {
 	PutAddressObject(ctx context.Context, path string, raw []byte, opts *PutAddressObjectOptions) (*AddressObject, error)
 	DeleteAddressObject(ctx context.Context, path string) error
 
+	// SyncCollection answers a sync-collection REPORT. An empty SyncQuery
+	// token means an initial synchronisation, for which every current member
+	// is an addition.
+	SyncCollection(ctx context.Context, path string, query *SyncQuery) (*SyncResponse, error)
+
 	webdav.UserPrincipalBackend
 }
 
@@ -95,8 +100,10 @@ func (h *Handler) handleReport(w http.ResponseWriter, r *http.Request) error {
 		return h.handleQuery(r, w, report.Query)
 	} else if report.Multiget != nil {
 		return h.handleMultiget(r.Context(), w, report.Multiget)
+	} else if report.Sync != nil {
+		return h.handleSyncCollection(r, w, report.Sync)
 	}
-	return internal.HTTPErrorf(http.StatusBadRequest, "carddav: expected addressbook-query or addressbook-multiget element in REPORT request")
+	return internal.HTTPErrorf(http.StatusBadRequest, "carddav: expected addressbook-query, addressbook-multiget or sync-collection element in REPORT request")
 }
 
 func decodePropFilter(el *propFilter) (*PropFilter, error) {
@@ -206,6 +213,57 @@ func (h *Handler) handleQuery(r *http.Request, w http.ResponseWriter, query *add
 	}
 
 	ms := internal.NewMultiStatus(resps...)
+	return internal.ServeMultiStatus(w, ms)
+}
+
+func (h *Handler) handleSyncCollection(r *http.Request, w http.ResponseWriter, sync *internal.SyncCollectionQuery) error {
+	ctx := r.Context()
+
+	var dataReq AddressDataRequest
+	if sync.Prop != nil {
+		var addressData addressDataReq
+		if err := sync.Prop.Decode(&addressData); err != nil && !internal.IsNotFound(err) {
+			return err
+		}
+		decoded, err := decodeAddressDataReq(&addressData)
+		if err != nil {
+			return err
+		}
+		dataReq = *decoded
+	}
+
+	query := SyncQuery{DataRequest: dataReq, SyncToken: sync.SyncToken}
+	if sync.Limit != nil {
+		query.Limit = int(sync.Limit.NResults)
+	}
+
+	resp, err := h.Backend.SyncCollection(ctx, r.URL.Path, &query)
+	if err != nil {
+		return err
+	}
+
+	b := backend{Backend: h.Backend, Prefix: strings.TrimSuffix(h.Prefix, "/")}
+	propfind := internal.PropFind{Prop: sync.Prop}
+
+	var resps []internal.Response
+	for i := range resp.Updated {
+		r, err := b.propFindAddressObject(ctx, &propfind, &resp.Updated[i])
+		if err != nil {
+			return err
+		}
+		resps = append(resps, *r)
+	}
+	// RFC 6578 3.2: a removed member is reported as a 404 response with no
+	// properties, which is how the client learns to drop it.
+	for _, path := range resp.Deleted {
+		resps = append(resps, internal.Response{
+			Hrefs:  []internal.Href{{Path: path}},
+			Status: &internal.Status{Code: http.StatusNotFound},
+		})
+	}
+
+	ms := internal.NewMultiStatus(resps...)
+	ms.SyncToken = resp.SyncToken
 	return internal.ServeMultiStatus(w, ms)
 }
 
@@ -522,6 +580,13 @@ func (b *backend) propFindAddressBook(ctx context.Context, propfind *internal.Pr
 				Write: &struct{}{},
 			}},
 		}),
+		internal.SupportedReportSetName: internal.PropFindValue(internal.NewSupportedReportSet(
+			internal.SyncCollectionName, addressBookQueryName, addressBookMultigetName,
+		)),
+	}
+
+	if ab.SyncToken != "" {
+		props[internal.SyncTokenName] = internal.PropFindValue(&internal.SyncToken{Token: ab.SyncToken})
 	}
 
 	if ab.Name != "" {

@@ -28,6 +28,9 @@ type AddressBook struct {
 	Description          string
 	MaxResourceSize      int64
 	SupportedAddressData []AddressDataType
+	// SyncToken is the collection's current position in its own change
+	// sequence, reported so a client can start syncing from now.
+	SyncToken string
 }
 
 func (ab *AddressBook) SupportsAddressData(contentType, version string) bool {

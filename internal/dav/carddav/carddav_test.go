@@ -114,6 +114,10 @@ func (*testBackend) PutAddressObject(ctx context.Context, path string, raw []byt
 	panic("TODO: implement")
 }
 
+func (*testBackend) SyncCollection(ctx context.Context, path string, query *SyncQuery) (*SyncResponse, error) {
+	panic("TODO: implement")
+}
+
 func (*testBackend) DeleteAddressObject(ctx context.Context, path string) error {
 	panic("TODO: implement")
 }

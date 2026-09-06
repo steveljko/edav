@@ -222,6 +222,10 @@ func (t testBackend) GetCalendarObject(ctx context.Context, path string, req *Ca
 	return nil, fmt.Errorf("Couldn't find calendar object at: %s", path)
 }
 
+func (t testBackend) SyncCollection(ctx context.Context, path string, query *SyncQuery) (*SyncResponse, error) {
+	return nil, nil
+}
+
 func (t testBackend) PutCalendarObject(ctx context.Context, path string, raw []byte, opts *PutCalendarObjectOptions) (*CalendarObject, error) {
 	return nil, nil
 }

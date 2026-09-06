@@ -42,6 +42,11 @@ type Backend interface {
 	PutCalendarObject(ctx context.Context, path string, raw []byte, opts *PutCalendarObjectOptions) (*CalendarObject, error)
 	DeleteCalendarObject(ctx context.Context, path string) error
 
+	// SyncCollection answers a sync-collection REPORT. An empty SyncQuery
+	// token means an initial synchronisation, for which every current member
+	// is an addition.
+	SyncCollection(ctx context.Context, path string, query *SyncQuery) (*SyncResponse, error)
+
 	webdav.UserPrincipalBackend
 }
 
@@ -98,8 +103,10 @@ func (h *Handler) handleReport(w http.ResponseWriter, r *http.Request) error {
 		return h.handleQuery(r, w, report.Query)
 	} else if report.Multiget != nil {
 		return h.handleMultiget(r.Context(), w, report.Multiget)
+	} else if report.Sync != nil {
+		return h.handleSyncCollection(r, w, report.Sync)
 	}
-	return internal.HTTPErrorf(http.StatusBadRequest, "caldav: expected calendar-query or calendar-multiget element in REPORT request")
+	return internal.HTTPErrorf(http.StatusBadRequest, "caldav: expected calendar-query, calendar-multiget or sync-collection element in REPORT request")
 }
 
 func decodeParamFilter(el *paramFilter) (*ParamFilter, error) {
@@ -242,6 +249,57 @@ func (h *Handler) handleQuery(r *http.Request, w http.ResponseWriter, query *cal
 
 	ms := internal.NewMultiStatus(resps...)
 
+	return internal.ServeMultiStatus(w, ms)
+}
+
+func (h *Handler) handleSyncCollection(r *http.Request, w http.ResponseWriter, sync *internal.SyncCollectionQuery) error {
+	ctx := r.Context()
+
+	var dataReq CalendarCompRequest
+	if sync.Prop != nil {
+		var calendarData calendarDataReq
+		if err := sync.Prop.Decode(&calendarData); err != nil && !internal.IsNotFound(err) {
+			return err
+		}
+		decoded, err := decodeCalendarDataReq(&calendarData)
+		if err != nil {
+			return err
+		}
+		dataReq = *decoded
+	}
+
+	query := SyncQuery{CompRequest: dataReq, SyncToken: sync.SyncToken}
+	if sync.Limit != nil {
+		query.Limit = int(sync.Limit.NResults)
+	}
+
+	resp, err := h.Backend.SyncCollection(ctx, r.URL.Path, &query)
+	if err != nil {
+		return err
+	}
+
+	b := backend{Backend: h.Backend, Prefix: strings.TrimSuffix(h.Prefix, "/")}
+	propfind := internal.PropFind{Prop: sync.Prop}
+
+	var resps []internal.Response
+	for i := range resp.Updated {
+		r, err := b.propFindCalendarObject(ctx, &propfind, &resp.Updated[i])
+		if err != nil {
+			return err
+		}
+		resps = append(resps, *r)
+	}
+	// RFC 6578 3.2: a removed member is reported as a 404 response with no
+	// properties, which is how the client learns to drop it.
+	for _, path := range resp.Deleted {
+		resps = append(resps, internal.Response{
+			Hrefs:  []internal.Href{{Path: path}},
+			Status: &internal.Status{Code: http.StatusNotFound},
+		})
+	}
+
+	ms := internal.NewMultiStatus(resps...)
+	ms.SyncToken = resp.SyncToken
 	return internal.ServeMultiStatus(w, ms)
 }
 
@@ -585,6 +643,13 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 				Write: &struct{}{},
 			}},
 		}),
+		internal.SupportedReportSetName: internal.PropFindValue(internal.NewSupportedReportSet(
+			internal.SyncCollectionName, calendarQueryName, calendarMultigetName,
+		)),
+	}
+
+	if cal.SyncToken != "" {
+		props[internal.SyncTokenName] = internal.PropFindValue(&internal.SyncToken{Token: cal.SyncToken})
 	}
 
 	if cal.Name != "" {

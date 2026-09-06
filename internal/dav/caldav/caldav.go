@@ -69,6 +69,24 @@ type Calendar struct {
 	Description           string
 	MaxResourceSize       int64
 	SupportedComponentSet []string
+	// SyncToken is the collection's current position in its own change
+	// sequence, reported so a client can start syncing from now.
+	SyncToken string
+}
+
+// SyncQuery is a sync-collection request.
+type SyncQuery struct {
+	CompRequest CalendarCompRequest
+	SyncToken   string
+	Limit       int // <= 0 means unlimited
+}
+
+// SyncResponse carries the changes since a sync token, and the token to use
+// next time.
+type SyncResponse struct {
+	SyncToken string
+	Updated   []CalendarObject
+	Deleted   []string
 }
 
 type CalendarCompRequest struct {

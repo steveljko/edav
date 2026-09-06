@@ -310,12 +310,48 @@ func (b *CalDAVBackend) DeleteCalendarObject(ctx context.Context, path string) e
 	}
 }
 
+// SyncCollection answers a sync-collection REPORT with everything that changed
+// after the client's token, including the members that have since been removed.
+func (b *CalDAVBackend) SyncCollection(ctx context.Context, path string, query *caldav.SyncQuery) (*caldav.SyncResponse, error) {
+	u, c, err := b.resolveCalendar(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+
+	var token string
+	var limit int
+	var req *caldav.CalendarCompRequest
+	if query != nil {
+		token, limit = query.SyncToken, query.Limit
+		req = &query.CompRequest
+	}
+
+	changes, err := collectSync(ctx, b.DB, c, token, limit)
+	if err != nil {
+		return nil, syncTokenError(err)
+	}
+
+	resp := &caldav.SyncResponse{SyncToken: changes.Token}
+	for _, obj := range changes.Updated {
+		co, err := b.calendarObject(u.Username, c, obj, req)
+		if err != nil {
+			return nil, err
+		}
+		resp.Updated = append(resp.Updated, co)
+	}
+	for _, uri := range changes.Deleted {
+		resp.Deleted = append(resp.Deleted, b.Paths.CalendarObject(u.Username, c.URI, uri))
+	}
+	return resp, nil
+}
+
 func (b *CalDAVBackend) calendar(username string, c *storage.Collection) caldav.Calendar {
 	return caldav.Calendar{
 		Path:            b.Paths.Calendar(username, c.URI),
 		Name:            c.DisplayName,
 		Description:     c.Description,
 		MaxResourceSize: caldav.MaxResourceSize,
+		SyncToken:       encodeSyncToken(c.SyncSeq),
 		SupportedComponentSet: []string{
 			ical.CompEvent, ical.CompToDo,
 		},

@@ -24,6 +24,10 @@ var (
 	CollectionName = xml.Name{Space: Namespace, Local: "collection"}
 	PrincipalName  = xml.Name{Space: Namespace, Local: "principal"}
 
+	SyncCollectionName     = xml.Name{Space: Namespace, Local: "sync-collection"}
+	SyncTokenName          = xml.Name{Space: Namespace, Local: "sync-token"}
+	SupportedReportSetName = xml.Name{Space: Namespace, Local: "supported-report-set"}
+
 	CurrentUserPrincipalName    = xml.Name{Space: Namespace, Local: "current-user-principal"}
 	CurrentUserPrivilegeSetName = xml.Name{Space: Namespace, Local: "current-user-privilege-set"}
 )
@@ -464,4 +468,41 @@ type Privilege struct {
 	XMLName xml.Name  `xml:"DAV: privilege"`
 	Read    *struct{} `xml:"DAV: read,omitempty"`
 	Write   *struct{} `xml:"DAV: write,omitempty"`
+}
+
+// https://tools.ietf.org/html/rfc6578#section-6.2
+type SyncToken struct {
+	XMLName xml.Name `xml:"DAV: sync-token"`
+	Token   string   `xml:",chardata"`
+}
+
+// https://tools.ietf.org/html/rfc3253#section-3.1.5
+type SupportedReportSet struct {
+	XMLName          xml.Name          `xml:"DAV: supported-report-set"`
+	SupportedReports []SupportedReport `xml:"supported-report"`
+}
+
+type SupportedReport struct {
+	XMLName xml.Name        `xml:"DAV: supported-report"`
+	Report  ReportContainer `xml:"report"`
+}
+
+type ReportContainer struct {
+	XMLName xml.Name      `xml:"DAV: report"`
+	Reports []RawXMLValue `xml:",any"`
+}
+
+// NewSupportedReportSet names the reports a collection accepts. A client that
+// does not find sync-collection here falls back to polling the ctag and
+// fetching every ETag in the collection on each sync.
+func NewSupportedReportSet(names ...xml.Name) *SupportedReportSet {
+	set := &SupportedReportSet{}
+	for _, name := range names {
+		set.SupportedReports = append(set.SupportedReports, SupportedReport{
+			Report: ReportContainer{
+				Reports: []RawXMLValue{*NewRawXMLElement(name, nil, nil)},
+			},
+		})
+	}
+	return set
 }
