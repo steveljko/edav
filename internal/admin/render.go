@@ -8,6 +8,7 @@ import (
 
 	"github.com/steveljko/edav/internal/auth"
 	"github.com/steveljko/edav/internal/storage"
+	"github.com/steveljko/edav/internal/vcard"
 )
 
 // pages are parsed against the shared layout, each producing its own template
@@ -19,6 +20,7 @@ var pages = []string{
 	"collection.html",
 	"confirm.html",
 	"setup.html",
+	"contact.html",
 }
 
 func (s *Server) parseTemplates() error {
@@ -75,6 +77,12 @@ type pageData struct {
 	ColorValue    string
 	ObjectCount   int
 	CollectionURL string
+	IsAddressBook bool
+	Contacts      []contactRow
+	Contact       *vcard.Contact
+	ContactURI    string
+	ContactAction string
+	TypeOptions   []string
 	Confirm       confirmation
 
 	// Client setup.

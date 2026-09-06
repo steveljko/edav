@@ -98,6 +98,13 @@ func (s *Server) collectionPage(r *http.Request, c *storage.Collection, data pag
 	}
 	data.CollectionURL = s.baseURL(r) + s.collectionPath(c.Type, owner.Username, c.URI)
 
+	if c.Type == storage.CollectionAddressBook {
+		data.IsAddressBook = true
+		if data.Contacts, err = s.contactRows(r, c.ID); err != nil {
+			return data, err
+		}
+	}
+
 	title := c.DisplayName
 	if title == "" {
 		title = c.URI

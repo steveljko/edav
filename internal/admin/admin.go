@@ -76,6 +76,12 @@ func (s *Server) Register(mux *http.ServeMux) error {
 	mux.Handle("POST /admin/collections/{id}", admin(s.updateCollection))
 	mux.Handle("GET /admin/collections/{id}/delete", admin(s.confirmDeleteCollection))
 	mux.Handle("POST /admin/collections/{id}/delete", admin(s.deleteCollection))
+	mux.Handle("GET /admin/collections/{id}/contacts/new", admin(s.newContact))
+	mux.Handle("POST /admin/collections/{id}/contacts", admin(s.createContact))
+	mux.Handle("GET /admin/collections/{id}/contacts/{uri}", admin(s.showContact))
+	mux.Handle("POST /admin/collections/{id}/contacts/{uri}", admin(s.updateContact))
+	mux.Handle("GET /admin/collections/{id}/contacts/{uri}/delete", admin(s.confirmDeleteContact))
+	mux.Handle("POST /admin/collections/{id}/contacts/{uri}/delete", admin(s.deleteContact))
 	mux.Handle("GET /admin/setup", admin(s.showSetup))
 
 	return nil

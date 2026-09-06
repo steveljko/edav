@@ -23,6 +23,29 @@
 	<button type="submit" class="primary">Save changes</button>
 </form>
 
+{{if .IsAddressBook}}
+<h2>Contacts</h2>
+<div class="card">
+	<table>
+		<thead><tr><th>Name</th><th>File</th><th></th></tr></thead>
+		<tbody>
+		{{range .Contacts}}
+			<tr>
+				<td><a href="/admin/collections/{{$.Collection.ID}}/contacts/{{.URI}}">{{.Name}}</a></td>
+				<td><code>{{.URI}}</code></td>
+				<td class="actions">
+					<a class="button" href="/admin/collections/{{$.Collection.ID}}/contacts/{{.URI}}">Edit</a>
+				</td>
+			</tr>
+		{{else}}
+			<tr><td colspan="3" class="empty">No contacts yet.</td></tr>
+		{{end}}
+		</tbody>
+	</table>
+</div>
+<p><a class="button" href="/admin/collections/{{.Collection.ID}}/contacts/new">Add a contact</a></p>
+{{end}}
+
 <h2>Address for clients</h2>
 <div class="card">
 	<pre class="url">{{.CollectionURL}}</pre>
