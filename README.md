@@ -1,7 +1,7 @@
 # edav
 
-A self-hosted CalDAV, CardDAV and WebDAV server: calendars and contacts you own,
-served from a single static binary with SQLite behind it.
+A self-hosted CalDAV and CardDAV server: calendars and contacts you own, served
+from a single static binary with SQLite behind it.
 
 It ships with a small htmx admin interface for managing users and collections.
 There is nothing to install alongside it — no PHP, no separate database server.
@@ -14,8 +14,8 @@ the well-known redirects, and incremental synchronisation through
 `sync-collection`. Recurring events are expanded with EXDATE, RDATE and
 RECURRENCE-ID overrides, honouring embedded VTIMEZONE definitions.
 
-Not yet built: scheduling (RFC 6638 invitations and free/busy), which is out of
-scope for v1.
+Not built: scheduling (RFC 6638 invitations and free/busy), and plain WebDAV
+file storage. Both are out of scope for v1.
 
 Objects are stored exactly as the client sends them. Properties this server does
 not model, including vendor `X-` extensions, are preserved byte for byte, and an
@@ -64,7 +64,6 @@ at the first request.
 | `EDAV_ADMIN_PASSWORD` | — | Required, at least 8 characters |
 | `EDAV_CALDAV_ENABLED` | `true` | Serve calendars |
 | `EDAV_CARDDAV_ENABLED` | `true` | Serve address books |
-| `EDAV_WEBDAV_ENABLED` | `false` | Serve plain WebDAV |
 | `EDAV_SECURE_COOKIES` | `true` | `Secure` on the admin session cookie |
 
 `EDAV_ADMIN_PASSWORD` seeds the admin account on first start. It does not

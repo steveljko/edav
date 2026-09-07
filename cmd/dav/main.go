@@ -87,7 +87,7 @@ func run(cfg *config.Config) error {
 	errCh := make(chan error, 1)
 	go func() {
 		slog.Info("listening", "addr", cfg.Addr,
-			"caldav", cfg.CalDAVEnabled, "carddav", cfg.CardDAVEnabled, "webdav", cfg.WebDAVEnabled)
+			"caldav", cfg.CalDAVEnabled, "carddav", cfg.CardDAVEnabled)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}

@@ -24,7 +24,6 @@ func TestLoadDefaults(t *testing.T) {
 		AdminPassword:  "hunter2hunter2",
 		CalDAVEnabled:  true,
 		CardDAVEnabled: true,
-		WebDAVEnabled:  false,
 		SecureCookies:  true,
 	}
 	if *cfg != want {
@@ -42,7 +41,6 @@ func TestLoadOverrides(t *testing.T) {
 		"EDAV_ADMIN_PASSWORD":  "correct horse battery",
 		"EDAV_CALDAV_ENABLED":  "false",
 		"EDAV_CARDDAV_ENABLED": "0",
-		"EDAV_WEBDAV_ENABLED":  "true",
 		"EDAV_SECURE_COOKIES":  "false",
 	}))
 	if err != nil {
@@ -58,7 +56,6 @@ func TestLoadOverrides(t *testing.T) {
 		AdminPassword:  "correct horse battery",
 		CalDAVEnabled:  false,
 		CardDAVEnabled: false,
-		WebDAVEnabled:  true,
 		SecureCookies:  false,
 	}
 	if *cfg != want {
