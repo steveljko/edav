@@ -2,8 +2,8 @@
 <p class="crumb"><a href="/admin/">Users</a> <span>/</span> <span>{{.Subject.Username}}</span></p>
 
 <div class="page-head">
-	<div style="display:flex;align-items:center;gap:.9rem">
-		<span class="avatar" style="width:2.75rem;height:2.75rem;font-size:.95rem">{{initials .Subject.Username}}</span>
+	<div class="identity">
+		<span class="avatar lg">{{initials .Subject.Username}}</span>
 		<div>
 			<h1>{{if .Subject.DisplayName}}{{.Subject.DisplayName}}{{else}}{{.Subject.Username}}{{end}}</h1>
 			<p class="subtitle">{{.Subject.Username}}{{if .Subject.IsAdmin}} · administrator{{end}}</p>
@@ -111,9 +111,9 @@
 <h2>Danger zone</h2>
 <div class="card pad">
 	{{if .IsSelf}}
-		<p class="muted" style="margin:0">You cannot delete the account you are signed in as.</p>
+		<p class="muted flush">You cannot delete the account you are signed in as.</p>
 	{{else}}
-		<p class="muted" style="margin:0 0 1rem">Deleting {{.Subject.Username}} removes every collection
+		<p class="muted zone-note">Deleting {{.Subject.Username}} removes every collection
 			and object they own. This cannot be undone.</p>
 		<form method="post" action="/admin/users/{{.Subject.ID}}/delete">
 			<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">

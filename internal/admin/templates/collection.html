@@ -4,9 +4,8 @@
 	<span>{{if .Collection.DisplayName}}{{.Collection.DisplayName}}{{else}}{{.Collection.URI}}{{end}}</span></p>
 
 <div class="page-head">
-	<div style="display:flex;align-items:center;gap:.9rem">
-		<span class="avatar square {{if eq .Collection.Type "calendar"}}calendar{{else}}contacts{{end}}"
-		      style="width:2.75rem;height:2.75rem;font-size:1rem">
+	<div class="identity">
+		<span class="avatar square lg {{if eq .Collection.Type "calendar"}}calendar{{else}}contacts{{end}}">
 			{{if eq .Collection.Type "calendar"}}31{{else}}@{{end}}
 		</span>
 		<div>
@@ -91,7 +90,7 @@
 
 <h2>Danger zone</h2>
 <div class="card pad">
-	<p class="muted" style="margin:0 0 1rem">Deleting this collection removes all
+	<p class="muted zone-note">Deleting this collection removes all
 		{{.ObjectCount}} item{{if ne .ObjectCount 1}}s{{end}} in it, on this server and on every
 		client that syncs it. This cannot be undone.</p>
 	<form method="post" action="/admin/collections/{{.Collection.ID}}/delete">

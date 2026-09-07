@@ -6,7 +6,7 @@
 		<p>{{.Confirm.Body}}</p>
 		<form method="post" action="{{.Confirm.Action}}">
 			<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-			<div class="actions-bar" style="margin-top:0">
+			<div class="actions-bar flush">
 				<button type="submit" class="solid-danger">{{.Confirm.Verb}}</button>
 				<a class="button" href="{{.Confirm.Cancel}}">Cancel</a>
 			</div>

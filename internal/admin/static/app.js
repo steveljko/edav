@@ -4,7 +4,57 @@
 (function () {
 	"use strict";
 
-	document.documentElement.classList.add("has-js");
+	var root = document.documentElement;
+	root.classList.add("has-js");
+
+	// Theme. The stored choice was already applied by a small script in the
+	// head, before the first paint; this only keeps the control in step with
+	// it and records a change. "system" is the absence of a choice, so it is
+	// stored as a removal rather than as a third value in the markup.
+	var THEME_KEY = "edav-theme";
+
+	function storedTheme() {
+		try {
+			var t = localStorage.getItem(THEME_KEY);
+			return t === "dark" || t === "light" ? t : "system";
+		} catch (e) {
+			return "system";
+		}
+	}
+
+	function showTheme(theme) {
+		document.querySelectorAll("[data-theme-set]").forEach(function (button) {
+			var on = button.getAttribute("data-theme-set") === theme;
+			button.setAttribute("aria-pressed", on ? "true" : "false");
+		});
+	}
+
+	showTheme(storedTheme());
+
+	document.addEventListener("click", function (event) {
+		var button = event.target.closest("[data-theme-set]");
+		if (!button) return;
+
+		var theme = button.getAttribute("data-theme-set");
+		if (theme === "system") {
+			root.removeAttribute("data-theme");
+		} else {
+			root.setAttribute("data-theme", theme);
+		}
+
+		try {
+			if (theme === "system") localStorage.removeItem(THEME_KEY);
+			else localStorage.setItem(THEME_KEY, theme);
+		} catch (e) {}
+
+		showTheme(theme);
+	});
+
+	// Colour transitions are enabled only after the first paint, so switching
+	// the theme animates while loading a page does not.
+	window.requestAnimationFrame(function () {
+		window.requestAnimationFrame(function () { root.classList.add("theme-ready"); });
+	});
 
 	// Copy a value to the clipboard. Client setup is mostly a page of URLs to
 	// paste elsewhere, and selecting one by hand is the fiddliest part of it.

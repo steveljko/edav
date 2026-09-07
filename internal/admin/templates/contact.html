@@ -5,8 +5,8 @@
 	<span>/</span> <span>{{if .ContactURI}}{{.Contact.DisplayName}}{{else}}New contact{{end}}</span></p>
 
 <div class="page-head">
-	<div style="display:flex;align-items:center;gap:.9rem">
-		<span class="avatar" style="width:2.75rem;height:2.75rem;font-size:.95rem">
+	<div class="identity">
+		<span class="avatar lg">
 			{{if .ContactURI}}{{initials .Contact.DisplayName}}{{else}}+{{end}}
 		</span>
 		<div>
