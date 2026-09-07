@@ -2,6 +2,7 @@ package admin
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -55,18 +56,19 @@ func TestContactSearchIsOfferedWhenThereAreContacts(t *testing.T) {
 	c := h.addressBook("contacts")
 
 	// Nothing to search through yet.
-	if got := body(t, h.get("/admin/collections/"+itoa(c.ID))); strings.Contains(got, `data-filter=`) {
+	if got := body(t, h.get("/admin/collections/"+itoa(c.ID))); strings.Contains(got, `name="q"`) {
 		t.Error("an empty address book offers a search box")
 	}
 
 	h.storeCard(c, "ada.vcf", phoneCard)
 	got := body(t, h.get("/admin/collections/"+itoa(c.ID)))
-	if !strings.Contains(got, `data-filter="contact-list"`) {
+	if !strings.Contains(got, `name="q"`) {
 		t.Error("no search box once there are contacts")
 	}
-	// Rows carry their own search text rather than the filter guessing.
-	if !strings.Contains(got, `data-search="ada lovelace ada.vcf"`) {
-		t.Errorf("contact row has no search text:\n%s", got)
+	// Typing searches the whole collection on the server rather than filtering
+	// the rows that happen to be on screen.
+	if !strings.Contains(got, `hx-target="#collection-results"`) {
+		t.Errorf("the search does not reach the server as you type:\n%s", got)
 	}
 }
 
@@ -322,5 +324,246 @@ func TestScriptNonceIsPerRequestAndUsed(t *testing.T) {
 		if got := body(t, resp); !strings.Contains(got, `nonce="`+nonce+`"`) {
 			t.Error("the page does not carry the nonce its policy admits")
 		}
+	}
+}
+
+func TestSlugify(t *testing.T) {
+	tests := []struct {
+		name string
+		want string
+	}{
+		{"Personal", "personal"},
+		{"Work Calendar", "work-calendar"},
+		{"  Trimmed  ", "trimmed"},
+		{"Family & Friends", "family-friends"},
+		{"Café Meetings", "caf-meetings"},
+		{"Ada's Contacts", "ada-s-contacts"},
+		{"multiple   spaces", "multiple-spaces"},
+		{"-leading-and-trailing-", "leading-and-trailing"},
+		{"UPPER", "upper"},
+		{"keep.dots_and_underscores", "keep.dots_and_underscores"},
+		{"2026 Planning", "2026-planning"},
+		{"", ""},
+		{"!!!", ""},
+		{strings.Repeat("a", 80), strings.Repeat("a", 60)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Slugify(tt.name); got != tt.want {
+				t.Errorf("Slugify(%q) = %q, want %q", tt.name, got, tt.want)
+			}
+		})
+	}
+}
+
+// Nobody should have to think about URLs to add a calendar.
+func TestCollectionSlugIsDerivedFromTheName(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+	page := "/admin/users/" + itoa(h.admin.ID)
+
+	resp := h.post(page+"/collections", h.form(page, url.Values{
+		"type":         {"calendar"},
+		"display_name": {"Work Calendar"},
+		"uri":          {""},
+	}))
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("status = %d, want 303: %s", resp.StatusCode, body(t, resp))
+	}
+
+	if _, err := storage.CollectionByURI(t.Context(), h.db, h.admin.ID, "work-calendar"); err != nil {
+		t.Errorf("no collection at the derived slug: %v", err)
+	}
+}
+
+// A derived slug that collides gets a number rather than an error about a
+// value nobody typed.
+func TestDerivedSlugAvoidsACollision(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+	page := "/admin/users/" + itoa(h.admin.ID)
+
+	for range 3 {
+		resp := h.post(page+"/collections", h.form(page, url.Values{
+			"type": {"calendar"}, "display_name": {"Work"}, "uri": {""},
+		}))
+		if resp.StatusCode != http.StatusSeeOther {
+			t.Fatalf("status = %d, want 303: %s", resp.StatusCode, body(t, resp))
+		}
+	}
+
+	for _, want := range []string{"work", "work-2", "work-3"} {
+		if _, err := storage.CollectionByURI(t.Context(), h.db, h.admin.ID, want); err != nil {
+			t.Errorf("no collection at %q: %v", want, err)
+		}
+	}
+}
+
+// A slug typed by hand is still the one used, and still checked.
+func TestExplicitSlugIsRespected(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+	page := "/admin/users/" + itoa(h.admin.ID)
+
+	resp := h.post(page+"/collections", h.form(page, url.Values{
+		"type": {"calendar"}, "display_name": {"Work Calendar"}, "uri": {"w"},
+	}))
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("status = %d, want 303", resp.StatusCode)
+	}
+	if _, err := storage.CollectionByURI(t.Context(), h.db, h.admin.ID, "w"); err != nil {
+		t.Errorf("the typed slug was not used: %v", err)
+	}
+
+	resp = h.post(page+"/collections", h.form(page, url.Values{
+		"type": {"calendar"}, "display_name": {"Bad"}, "uri": {"has spaces"},
+	}))
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("an invalid typed slug = %d, want 422", resp.StatusCode)
+	}
+}
+
+func TestSlugFieldFollowsTheNameField(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+
+	got := body(t, h.get("/admin/users/"+itoa(h.admin.ID)))
+	if !strings.Contains(got, `data-slug-source="uri"`) {
+		t.Error("the name field does not drive the slug field")
+	}
+	if !strings.Contains(got, `id="uri"`) || !strings.Contains(got, "data-slug") {
+		t.Error("the slug field is not marked for the script to fill")
+	}
+	// It must not be required, or leaving it blank cannot mean "derive it".
+	if strings.Contains(got, `name="uri" value="{{.Form.URI}}" placeholder="personal"`) {
+		t.Error("the slug field still demands a value")
+	}
+}
+
+// The browser's confirm() cannot say what is about to be deleted in the
+// interface's own voice, so the page draws its own.
+func TestDestructiveActionsUseThePageOwnDialog(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+	bob := h.createUser("bob")
+	c := h.addressBook("contacts")
+	h.storeCard(c, "ada.vcf", phoneCard)
+
+	pages := []string{
+		"/admin/users/" + itoa(bob.ID),
+		"/admin/collections/" + itoa(c.ID),
+		"/admin/collections/" + itoa(c.ID) + "/contacts/ada.vcf",
+	}
+
+	for _, page := range pages {
+		t.Run(page, func(t *testing.T) {
+			got := body(t, h.get(page))
+
+			if strings.Contains(got, "hx-confirm") {
+				t.Error("still using the browser's confirmation dialog")
+			}
+			for _, want := range []string{"data-confirm=", "data-confirm-title=", "data-confirm-verb="} {
+				if !strings.Contains(got, want) {
+					t.Errorf("the button carries no %s wording", want)
+				}
+			}
+			if !strings.Contains(got, `<dialog class="modal" id="confirm-modal"`) {
+				t.Error("the page has no dialog to show")
+			}
+		})
+	}
+}
+
+// A paged listing is a table with the detail worth scanning, not a bare list
+// of names.
+func TestListingsAreTablesWithDetail(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+
+	book := h.addressBook("contacts")
+	h.storeCard(book, "ada.vcf", phoneCard)
+
+	cal := h.calendar("work")
+	h.storeEvent(cal, "standup.ics", phoneEvent)
+
+	contacts := body(t, h.get("/admin/collections/"+itoa(book.ID)))
+	// The digits without the leading plus: html/template writes "+" as "&#43;"
+	// in text, which a browser renders back as "+".
+	for _, want := range []string{`<table class="data">`, "<th>Email</th>", "<th>Phone</th>",
+		"ada@example.com", "15551234567"} {
+		if !strings.Contains(contacts, want) {
+			t.Errorf("contact table is missing %q", want)
+		}
+	}
+
+	events := body(t, h.get("/admin/collections/"+itoa(cal.ID)))
+	for _, want := range []string{`<table class="data">`, "<th>When</th>", "<th>Where</th>",
+		"Room 3", "1 Apr 2026"} {
+		if !strings.Contains(events, want) {
+			t.Errorf("event table is missing %q", want)
+		}
+	}
+}
+
+// Typing in the search box replaces the results, not the page. The response to
+// such a request has to be the fragment alone, or the layout arrives nested
+// inside itself.
+func TestSearchReturnsOnlyTheResultsFragment(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+	c := h.addressBook("contacts")
+	h.storeCard(c, "ada.vcf", phoneCard)
+
+	page := "/admin/collections/" + itoa(c.ID)
+
+	full := body(t, h.get(page))
+	if !strings.Contains(full, "<!doctype html>") || !strings.Contains(full, `id="collection-results"`) {
+		t.Fatal("the full page is not a whole document with a results region")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, h.server.URL+page+"?q=ada", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("HX-Request", "true")
+
+	resp, err := h.client.Do(req)
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	t.Cleanup(func() { resp.Body.Close() })
+
+	fragment := body(t, resp)
+	if strings.Contains(fragment, "<!doctype html>") || strings.Contains(fragment, "<body") {
+		t.Errorf("the fragment carries the whole layout:\n%s", fragment)
+	}
+	if !strings.Contains(fragment, `<table class="data">`) {
+		t.Errorf("the fragment has no results table:\n%s", fragment)
+	}
+	if !strings.Contains(fragment, "Ada Lovelace") {
+		t.Errorf("the fragment did not honour the search:\n%s", fragment)
+	}
+}
+
+// The search still works with scripting off, so htmx is an enhancement rather
+// than the only way through.
+func TestSearchStillWorksAsAPlainForm(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+	c := h.addressBook("contacts")
+	h.storeCard(c, "ada.vcf", phoneCard)
+
+	got := body(t, h.get("/admin/collections/"+itoa(c.ID)))
+	if !strings.Contains(got, `<form method="get"`) {
+		t.Error("the search box is not a form")
+	}
+
+	full := body(t, h.get("/admin/collections/"+itoa(c.ID)+"?q=nobody"))
+	if !strings.Contains(full, "<!doctype html>") {
+		t.Error("a plain search did not return a whole page")
+	}
+	if !strings.Contains(full, "Nothing matches") {
+		t.Error("a plain search did not apply the query")
 	}
 }

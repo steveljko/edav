@@ -16,9 +16,11 @@ import (
 // contactRow is a contact as the collection listing shows it. It is built from
 // the indexed columns rather than by parsing every stored card.
 type contactRow struct {
-	URI  string
-	Name string
-	UID  string
+	URI   string
+	Name  string
+	UID   string
+	Email string
+	Phone string
 }
 
 // contactsPerPage is what one page of an address book shows. Large enough that
@@ -42,9 +44,26 @@ func (s *Server) contactRows(r *http.Request, collectionID int64) ([]contactRow,
 		if name == "" {
 			name = o.URI
 		}
-		rows = append(rows, contactRow{URI: o.URI, Name: name, UID: o.UID})
+		row := contactRow{URI: o.URI, Name: name, UID: o.UID}
+
+		// Parsing is bounded by the page size, so a listing costs the same
+		// whether the address book holds fifty contacts or fifty thousand.
+		if contact, err := vcard.ReadContact(o.Raw); err == nil {
+			row.Email = firstValue(contact.Emails)
+			row.Phone = firstValue(contact.Phones)
+		}
+		rows = append(rows, row)
 	}
 	return rows, total, page, nil
+}
+
+func firstValue(props []vcard.Property) string {
+	for _, p := range props {
+		if p.Value != "" {
+			return p.Value
+		}
+	}
+	return ""
 }
 
 func atoiOr(s string, fallback int) int {

@@ -56,6 +56,79 @@
 		window.requestAnimationFrame(function () { root.classList.add("theme-ready"); });
 	});
 
+	// A confirmation the page draws itself, rather than the browser's dialog,
+	// which cannot say what is about to be deleted in the interface's own voice.
+	// The button carries the wording; without scripting it is a link to a
+	// confirmation page instead, so nothing here is the only way through.
+	var modal = document.getElementById("confirm-modal");
+
+	document.addEventListener("click", function (event) {
+		var button = event.target.closest("[data-confirm]");
+		if (!button || !modal || typeof modal.showModal !== "function") return;
+
+		event.preventDefault();
+
+		var form = button.closest("form");
+		if (!form) return;
+
+		modal.querySelector("[data-modal-title]").textContent =
+			button.getAttribute("data-confirm-title") || "Are you sure?";
+		modal.querySelector("[data-modal-body]").textContent =
+			button.getAttribute("data-confirm") || "";
+		modal.querySelector("[data-modal-verb]").textContent =
+			button.getAttribute("data-confirm-verb") || "Delete";
+
+		modal.returnValue = "cancel";
+		modal.showModal();
+
+		modal.addEventListener("close", function once() {
+			modal.removeEventListener("close", once);
+			if (modal.returnValue === "confirm") form.submit();
+		});
+	});
+
+	// Clicking the backdrop dismisses it, which is what people expect of a
+	// dialog that is asking rather than telling.
+	if (modal) {
+		modal.addEventListener("click", function (event) {
+			if (event.target === modal) modal.close("cancel");
+		});
+	}
+
+	// Derive a URL slug from a name as it is typed, and stop as soon as the
+	// slug is edited by hand. The server derives the same slug when the field
+	// is left empty, so this only shows what is about to happen.
+	document.addEventListener("input", function (event) {
+		var source = event.target.closest("[data-slug-source]");
+		if (!source) return;
+
+		var target = document.getElementById(source.getAttribute("data-slug-source"));
+		if (!target || target.dataset.touched === "true") return;
+
+		target.value = slugify(source.value);
+	});
+
+    document.addEventListener("input", function (event) {
+		var target = event.target.closest("[data-slug]");
+		if (target) target.dataset.touched = target.value === "" ? "false" : "true";
+	});
+
+	function slugify(name) {
+		var out = "";
+		var dash = false;
+
+		name.toLowerCase().trim().split("").forEach(function (ch) {
+			if (/[a-z0-9._]/.test(ch)) {
+				out += ch;
+				dash = false;
+			} else if (!dash && out.length > 0) {
+				out += "-";
+				dash = true;
+			}
+		});
+		return out.replace(/^[-._]+|[-._]+$/g, "").slice(0, 60).replace(/[-._]+$/, "");
+	}
+
 	// Copy a value to the clipboard. Client setup is mostly a page of URLs to
 	// paste elsewhere, and selecting one by hand is the fiddliest part of it.
 	document.addEventListener("click", function (event) {
@@ -92,28 +165,6 @@
 			selection.removeAllRanges();
 			selection.addRange(range);
 		}
-	});
-
-	// Filter a list as you type. Rows carry their own search text so the
-	// filter never has to guess which parts of the markup are meaningful.
-	document.addEventListener("input", function (event) {
-		var input = event.target.closest("[data-filter]");
-		if (!input) return;
-
-		var list = document.getElementById(input.getAttribute("data-filter"));
-		if (!list) return;
-
-		var needle = input.value.trim().toLowerCase();
-		var shown = 0;
-
-		list.querySelectorAll("[data-search]").forEach(function (row) {
-			var match = !needle || row.getAttribute("data-search").indexOf(needle) !== -1;
-			row.hidden = !match;
-			if (match) shown++;
-		});
-
-		var empty = list.querySelector("[data-filter-empty]");
-		if (empty) empty.hidden = shown !== 0;
 	});
 
 	// Add another phone or email row. The server already accepts as many as

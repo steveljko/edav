@@ -28,121 +28,10 @@
 	{{end}}
 </div>
 
-{{if .IsAddressBook}}
-<h2>Contacts</h2>
-{{if or .Contacts .Query}}
-<form method="get" action="/admin/collections/{{.Collection.ID}}" class="search">
-	{{template "icon-search" .}}
-	<label for="contact-filter" class="visually-hidden">Search contacts</label>
-	<input type="search" id="contact-filter" name="q" value="{{.Query}}"
-	       data-filter="contact-list" placeholder="Search contacts" autocomplete="off">
-	<button type="submit" class="no-js-only small">Search</button>
-</form>
-{{end}}
-<div class="card">
-	<div class="list" id="contact-list">
-	{{range .Contacts}}
-		<a class="row-item" data-search="{{lower .Name}} {{lower .URI}}"
-		   href="/admin/collections/{{$.Collection.ID}}/contacts/{{.URI}}">
-			<span class="avatar">{{initials .Name}}</span>
-			<span class="row-main">
-				<span class="row-title">{{.Name}}</span>
-				<span class="row-sub mono">{{.URI}}</span>
-			</span>
-		</a>
-	{{else}}
-		{{if .Query}}
-		<div class="empty">
-			<div class="headline">Nothing matches “{{.Query}}”</div>
-			<p>Try a different search, or <a href="/admin/collections/{{.Collection.ID}}">show everything</a>.</p>
-		</div>
-		{{else}}
-		<div class="empty">
-			<div class="headline">No contacts yet</div>
-			<p>Add one here, or let a client sync them in.</p>
-			<a class="button primary" href="/admin/collections/{{.Collection.ID}}/contacts/new">Add a contact</a>
-		</div>
-		{{end}}
-	{{end}}
-		<div class="empty" data-filter-empty hidden>
-			<div class="headline">Nothing matches on this page</div>
-			<p>Press Enter to search the whole address book.</p>
-		</div>
-	</div>
-</div>
-
-{{if gt .Pages 1}}
-<nav class="pager" aria-label="Contact pages">
-	{{if .PrevPage}}
-		<a class="button small" href="?{{if .Query}}q={{.Query}}&amp;{{end}}page={{.PrevPage}}">Previous</a>
-	{{else}}
-		<span></span>
-	{{end}}
-	<span class="muted">Page {{.Page}} of {{.Pages}} · {{.MatchCount}} contact{{if ne .MatchCount 1}}s{{end}}</span>
-	{{if .NextPage}}
-		<a class="button small" href="?{{if .Query}}q={{.Query}}&amp;{{end}}page={{.NextPage}}">Next</a>
-	{{else}}
-		<span></span>
-	{{end}}
-</nav>
-{{end}}
-{{end}}
-
-{{if .IsCalendar}}
-<h2>Events</h2>
-{{if or .Events .Query}}
-<form method="get" action="/admin/collections/{{.Collection.ID}}" class="search">
-	{{template "icon-search" .}}
-	<label for="event-filter" class="visually-hidden">Search events</label>
-	<input type="search" id="event-filter" name="q" value="{{.Query}}"
-	       data-filter="event-list" placeholder="Search events" autocomplete="off">
-	<button type="submit" class="no-js-only small">Search</button>
-</form>
-{{end}}
-<div class="card">
-	<div class="list" id="event-list">
-	{{range .Events}}
-		<a class="row-item{{if .Past}} is-past{{end}}" data-search="{{lower .Summary}} {{lower .URI}}"
-		   href="/admin/collections/{{$.Collection.ID}}/events/{{.URI}}">
-			<span class="avatar square calendar">31</span>
-			<span class="row-main">
-				<span class="row-title">{{.Summary}}</span>
-				<span class="row-sub">{{.When}}</span>
-			</span>
-			{{if .Recurring}}<span class="badge calendar">repeats</span>{{end}}
-		</a>
-	{{else}}
-		{{if .Query}}
-		<div class="empty">
-			<div class="headline">Nothing matches “{{.Query}}”</div>
-			<p>Try a different search, or <a href="/admin/collections/{{.Collection.ID}}">show everything</a>.</p>
-		</div>
-		{{else}}
-		<div class="empty">
-			<div class="headline">No events yet</div>
-			<p>Add one here, or let a client sync them in.</p>
-			<a class="button primary" href="/admin/collections/{{.Collection.ID}}/events/new">Add an event</a>
-		</div>
-		{{end}}
-	{{end}}
-		<div class="empty" data-filter-empty hidden>
-			<div class="headline">Nothing matches on this page</div>
-			<p>Press Enter to search the whole calendar.</p>
-		</div>
-	</div>
-</div>
-
-{{if gt .Pages 1}}
-<nav class="pager" aria-label="Event pages">
-	{{if .PrevPage}}
-		<a class="button small" href="?{{if .Query}}q={{.Query}}&amp;{{end}}page={{.PrevPage}}">Previous</a>
-	{{else}}<span></span>{{end}}
-	<span class="muted">Page {{.Page}} of {{.Pages}} · {{.MatchCount}} event{{if ne .MatchCount 1}}s{{end}}</span>
-	{{if .NextPage}}
-		<a class="button small" href="?{{if .Query}}q={{.Query}}&amp;{{end}}page={{.NextPage}}">Next</a>
-	{{else}}<span></span>{{end}}
-</nav>
-{{end}}
+{{if or .IsAddressBook .IsCalendar}}
+<h2>{{if .IsCalendar}}Events{{else}}Contacts{{end}}</h2>
+{{template "collection-toolbar" .}}
+<div id="collection-results">{{template "collection-results" .}}</div>
 {{end}}
 
 <h2>Address for clients</h2>
@@ -182,8 +71,10 @@
 		client that syncs it. This cannot be undone.</p>
 	<form method="post" action="/admin/collections/{{.Collection.ID}}/delete">
 		<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-		<button class="danger js-only" hx-post="/admin/collections/{{.Collection.ID}}/delete"
-		        hx-confirm="Delete this collection and its {{.ObjectCount}} item{{if ne .ObjectCount 1}}s{{end}}?">
+		<button class="danger js-only"
+		        data-confirm="This removes the collection and all {{.ObjectCount}} item{{if ne .ObjectCount 1}}s{{end}} in it, here and on every client that syncs it. It cannot be undone."
+		        data-confirm-title="Delete {{if .Collection.DisplayName}}{{.Collection.DisplayName}}{{else}}{{.Collection.URI}}{{end}}?"
+		        data-confirm-verb="Delete collection">
 			{{template "icon-trash" .}} Delete collection
 		</button>
 		<a class="button danger no-js-only" href="/admin/collections/{{.Collection.ID}}/delete">
@@ -191,4 +82,106 @@
 		</a>
 	</form>
 </div>
+{{end}}
+
+{{define "collection-results"}}
+{{if .IsAddressBook}}
+
+<div class="card table-card">
+	<table class="data">
+		<thead>
+			<tr>
+				<th>Name</th>
+				<th>Email</th>
+				<th>Phone</th>
+				<th><span class="visually-hidden">Actions</span></th>
+			</tr>
+		</thead>
+		<tbody>
+		{{range .Contacts}}
+			<tr data-search="{{lower .Name}} {{lower .Email}} {{lower .Phone}} {{lower .URI}}">
+				<td class="subject">
+					<a href="/admin/collections/{{$.Collection.ID}}/contacts/{{.URI}}">
+						<span class="avatar">{{initials .Name}}</span>
+						<span class="name">{{.Name}}</span>
+					</a>
+				</td>
+				<td class="meta"><span>{{if .Email}}{{.Email}}{{else}}<span class="placeholder">—</span>{{end}}</span></td>
+				<td class="meta"><span>{{if .Phone}}{{.Phone}}{{else}}<span class="placeholder">—</span>{{end}}</span></td>
+				<td class="trailing">
+					<a class="button small" href="/admin/collections/{{$.Collection.ID}}/contacts/{{.URI}}">Edit</a>
+				</td>
+			</tr>
+		{{else}}
+			<tr><td colspan="4">
+				{{if .Query}}
+				<div class="empty">
+					<div class="headline">Nothing matches “{{.Query}}”</div>
+					<p>Try a different search, or <a href="/admin/collections/{{.Collection.ID}}">show everything</a>.</p>
+				</div>
+				{{else}}
+				<div class="empty">
+					<div class="headline">No contacts yet</div>
+					<p>Add one here, or let a client sync them in.</p>
+					<a class="button primary" href="/admin/collections/{{.Collection.ID}}/contacts/new">Add a contact</a>
+				</div>
+				{{end}}
+			</td></tr>
+		{{end}}
+		</tbody>
+	</table>
+</div>
+
+{{template "pager" .}}
+{{end}}
+{{if .IsCalendar}}
+
+<div class="card table-card">
+	<table class="data">
+		<thead>
+			<tr>
+				<th>Event</th>
+				<th>When</th>
+				<th>Where</th>
+				<th><span class="visually-hidden">Actions</span></th>
+			</tr>
+		</thead>
+		<tbody>
+		{{range .Events}}
+			<tr class="{{if .Past}}is-past{{end}}">
+				<td class="subject">
+					<a href="/admin/collections/{{$.Collection.ID}}/events/{{.URI}}">
+						<span class="avatar square calendar">31</span>
+						<span class="name">{{.Summary}}</span>
+						{{if .Recurring}}<span class="badge calendar">repeats</span>{{end}}
+					</a>
+				</td>
+				<td class="when">{{.When}}</td>
+				<td class="meta"><span>{{if .Location}}{{.Location}}{{else}}<span class="placeholder">—</span>{{end}}</span></td>
+				<td class="trailing">
+					<a class="button small" href="/admin/collections/{{$.Collection.ID}}/events/{{.URI}}">Edit</a>
+				</td>
+			</tr>
+		{{else}}
+			<tr><td colspan="4">
+				{{if .Query}}
+				<div class="empty">
+					<div class="headline">Nothing matches “{{.Query}}”</div>
+					<p>Try a different search, or <a href="/admin/collections/{{.Collection.ID}}">show everything</a>.</p>
+				</div>
+				{{else}}
+				<div class="empty">
+					<div class="headline">No events yet</div>
+					<p>Add one here, or let a client sync them in.</p>
+					<a class="button primary" href="/admin/collections/{{.Collection.ID}}/events/new">Add an event</a>
+				</div>
+				{{end}}
+			</td></tr>
+		{{end}}
+		</tbody>
+	</table>
+</div>
+
+{{template "pager" .}}
+{{end}}
 {{end}}

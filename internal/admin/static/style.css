@@ -475,6 +475,76 @@ h2:first-of-type { margin-top: 0; }
 .empty p { margin: 0 auto; max-width: 26rem; font-size: var(--text-base); }
 .empty .button { margin-top: var(--s4); }
 
+/* Toolbar and tables ----------------------------------------------------- */
+
+.toolbar {
+	display: flex;
+	align-items: center;
+	gap: var(--s3);
+	margin-bottom: var(--s3);
+	flex-wrap: wrap;
+}
+
+.toolbar .search { margin-bottom: 0; flex: 1 1 16rem; }
+.toolbar .count { font-size: var(--text-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+.table-card { overflow-x: auto; }
+
+table.data {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--text-base);
+}
+
+table.data thead th {
+	text-align: left;
+	font-size: var(--text-xs);
+	font-weight: var(--weight-bold);
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--text-faint);
+	padding: var(--s3) var(--s4);
+	border-bottom: 1px solid var(--border);
+	white-space: nowrap;
+	background: var(--surface);
+}
+
+table.data tbody td {
+	padding: var(--s3) var(--s4);
+	border-bottom: 1px solid var(--border);
+	vertical-align: middle;
+}
+
+table.data tbody tr:last-child td { border-bottom: 0; }
+table.data tbody tr { transition: background var(--fast); }
+table.data tbody tr:hover { background: var(--surface-hover); }
+table.data tbody tr[hidden] { display: none; }
+
+/* The whole row is the link; the anchor covers the first cell and the rest of
+   the row follows it, so there is one target rather than a cell of them. */
+table.data td.subject { min-width: 0; }
+table.data td.subject a {
+	display: flex;
+	align-items: center;
+	gap: var(--s3);
+	text-decoration: none;
+	color: inherit;
+	font-weight: var(--weight-semi);
+	letter-spacing: -0.008em;
+	min-width: 0;
+}
+table.data td.subject a:hover .name { color: var(--accent); }
+table.data td.subject .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+table.data td.meta { color: var(--text-muted); font-size: var(--text-sm); max-width: 16rem; }
+table.data td.meta span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+table.data td.when { white-space: nowrap; font-variant-numeric: tabular-nums; }
+table.data td.trailing { text-align: right; white-space: nowrap; width: 1%; }
+table.data tr.is-past td.subject .name, table.data tr.is-past td.when { color: var(--text-muted); }
+table.data tr.is-past .avatar { opacity: 0.5; }
+
+table.data .placeholder { color: var(--text-faint); }
+
 /* Controls --------------------------------------------------------------- */
 
 label {
@@ -724,6 +794,58 @@ label.checkbox input { width: auto; accent-color: var(--accent); margin: 0; }
 	gap: var(--s3);
 	margin-top: var(--s3);
 	font-size: var(--text-sm);
+	color: var(--text-muted);
+}
+
+.pager .position { font-variant-numeric: tabular-nums; }
+
+/* Modal ------------------------------------------------------------------ */
+
+dialog.modal {
+	padding: 0;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: var(--shadow-lg);
+	max-width: 27rem;
+	width: calc(100% - var(--s6));
+}
+
+dialog.modal::backdrop {
+	background: rgb(20 18 16 / 0.45);
+	backdrop-filter: blur(2px);
+}
+
+dialog.modal[open] { animation: modal-in 0.16s var(--ease); }
+
+@keyframes modal-in {
+	from { opacity: 0; transform: translateY(6px) scale(0.985); }
+	to { opacity: 1; transform: none; }
+}
+
+.modal-body { padding: var(--s5); }
+
+.modal-body .icon {
+	display: grid;
+	place-items: center;
+	width: 2.5rem;
+	height: 2.5rem;
+	border-radius: var(--radius-full);
+	background: var(--danger-soft);
+	color: var(--danger);
+	margin-bottom: var(--s3);
+}
+
+.modal-body .icon svg { width: 20px; height: 20px; }
+.modal-body h2 { font-size: var(--text-lg); font-weight: var(--weight-bold); text-transform: none; letter-spacing: -0.02em; color: var(--text); margin: 0 0 var(--s1); }
+.modal-body p { color: var(--text-muted); font-size: var(--text-base); margin: 0; }
+
+.modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--s2);
+	padding: var(--s3) var(--s5) var(--s5);
 }
 
 /* Login ------------------------------------------------------------------ */

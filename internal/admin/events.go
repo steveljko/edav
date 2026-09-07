@@ -22,6 +22,7 @@ type eventRow struct {
 	URI       string
 	Summary   string
 	When      string
+	Location  string
 	AllDay    bool
 	Recurring bool
 	Past      bool
@@ -55,6 +56,9 @@ func (s *Server) eventRows(r *http.Request, collectionID int64) ([]eventRow, int
 				o.StartAt.Hour() == 0 && o.StartAt.Minute() == 0
 			row.When = formatWhen(*o.StartAt, o.EndAt, row.AllDay)
 			row.Past = o.EndAt != nil && o.EndAt.Before(now)
+		}
+		if event, err := ical.ReadEvent(o.Raw); err == nil {
+			row.Location = event.Location
 		}
 		rows = append(rows, row)
 	}

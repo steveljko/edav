@@ -66,6 +66,20 @@
 		</div>
 	</main>
 </div>
+
+<dialog class="modal" id="confirm-modal" aria-labelledby="confirm-title">
+	<form method="dialog">
+		<div class="modal-body">
+			<div class="icon">{{template "icon-alert" .}}</div>
+			<h2 id="confirm-title" data-modal-title>Are you sure?</h2>
+			<p data-modal-body></p>
+		</div>
+		<div class="modal-actions">
+			<button value="cancel">Cancel</button>
+			<button value="confirm" class="solid-danger" data-modal-verb>Delete</button>
+		</div>
+	</form>
+</dialog>
 {{else}}
 <div class="auth"><div class="auth-inner">
 	{{template "flashes" .}}
@@ -97,6 +111,55 @@
 {{define "icon-moon"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8"/></svg>{{end}}
 
 {{define "icon-system"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>{{end}}
+
+{{define "collection-toolbar"}}
+<div class="toolbar">
+	{{if or .MatchCount .Query}}
+	<form method="get" action="/admin/collections/{{.Collection.ID}}" class="search"
+	      hx-get="/admin/collections/{{.Collection.ID}}"
+	      hx-trigger="input changed delay:250ms from:find input, search from:find input"
+	      hx-target="#collection-results" hx-push-url="true" hx-indicator="#collection-results">
+		{{template "icon-search" .}}
+		<label for="collection-filter" class="visually-hidden">Search this collection</label>
+		<input type="search" id="collection-filter" name="q" value="{{.Query}}"
+		       placeholder="{{if .IsCalendar}}Search events{{else}}Search contacts{{end}}"
+		       autocomplete="off">
+		<button type="submit" class="no-js-only small">Search</button>
+	</form>
+	<span class="count">
+		{{.MatchCount}} {{if .IsCalendar}}event{{else}}contact{{end}}{{if ne .MatchCount 1}}s{{end}}
+		{{if .Query}}matching{{end}}
+	</span>
+	{{end}}
+	{{if .IsCalendar}}
+	<a class="button primary" href="/admin/collections/{{.Collection.ID}}/events/new">
+		{{template "icon-plus" .}} Add event
+	</a>
+	{{else}}
+	<a class="button primary" href="/admin/collections/{{.Collection.ID}}/contacts/new">
+		{{template "icon-plus" .}} Add contact
+	</a>
+	{{end}}
+</div>
+{{end}}
+
+{{define "pager"}}
+{{if gt .Pages 1}}
+<nav class="pager" aria-label="Pages">
+	{{if .PrevPage}}
+		<a class="button small" href="?{{if .Query}}q={{.Query}}&amp;{{end}}page={{.PrevPage}}"
+		   hx-get="?{{if .Query}}q={{.Query}}&amp;{{end}}page={{.PrevPage}}"
+		   hx-target="#collection-results" hx-push-url="true">← Previous</a>
+	{{else}}<span></span>{{end}}
+	<span class="position">Page {{.Page}} of {{.Pages}}</span>
+	{{if .NextPage}}
+		<a class="button small" href="?{{if .Query}}q={{.Query}}&amp;{{end}}page={{.NextPage}}"
+		   hx-get="?{{if .Query}}q={{.Query}}&amp;{{end}}page={{.NextPage}}"
+		   hx-target="#collection-results" hx-push-url="true">Next →</a>
+	{{else}}<span></span>{{end}}
+</nav>
+{{end}}
+{{end}}
 
 {{define "icon-repeat"}}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>{{end}}
 

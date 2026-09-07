@@ -129,8 +129,8 @@ is left exactly as it is.</span></p>
 	<form method="post" action="/admin/collections/{{.Collection.ID}}/contacts/{{.ContactURI}}/delete">
 		<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 		<button class="danger js-only"
-		        hx-post="/admin/collections/{{.Collection.ID}}/contacts/{{.ContactURI}}/delete"
-		        hx-confirm="Delete {{.Contact.DisplayName}}?">
+		        data-confirm="This removes the contact from the address book and from every client that syncs it. It cannot be undone."
+		        data-confirm-title="Delete {{.Contact.DisplayName}}?" data-confirm-verb="Delete contact">
 			{{template "icon-trash" .}} Delete contact
 		</button>
 		<a class="button danger no-js-only"

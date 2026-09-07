@@ -112,8 +112,8 @@ save. Reminders, guests and anything else this event carries are left exactly as
 	<form method="post" action="/admin/collections/{{.Collection.ID}}/events/{{.EventURI}}/delete">
 		<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 		<button class="danger js-only"
-		        hx-post="/admin/collections/{{.Collection.ID}}/events/{{.EventURI}}/delete"
-		        hx-confirm="Delete {{.Event.Summary}}?">
+		        data-confirm="{{if .Event.Recurrence}}This removes every occurrence of this repeating event{{else}}This removes the event{{end}}, here and on every client that syncs it. It cannot be undone."
+		        data-confirm-title="Delete {{.Event.Summary}}?" data-confirm-verb="Delete event">
 			{{template "icon-trash" .}} Delete event
 		</button>
 		<a class="button danger no-js-only"

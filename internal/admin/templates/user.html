@@ -52,12 +52,14 @@
 		</div>
 		<div class="field">
 			<label for="display_name_c">Name</label>
-			<input type="text" id="display_name_c" name="display_name" value="{{.Form.DisplayName}}" placeholder="Personal">
+			<input type="text" id="display_name_c" name="display_name" value="{{.Form.DisplayName}}"
+			       placeholder="Personal" data-slug-source="uri">
 		</div>
 		<div class="field">
 			<label for="uri">URL slug</label>
-			<input type="text" id="uri" name="uri" value="{{.Form.URI}}" placeholder="personal"
-			       autocapitalize="none" spellcheck="false" required>
+			<input type="text" id="uri" name="uri" value="{{.Form.URI}}" placeholder="from the name"
+			       autocapitalize="none" spellcheck="false" data-slug>
+			<p class="hint">Where it lives in a client's URL. Left blank, it follows the name.</p>
 		</div>
 	</div>
 	<div class="actions-bar"><button type="submit" class="primary">Create collection</button></div>
@@ -117,8 +119,8 @@
 			and object they own. This cannot be undone.</p>
 		<form method="post" action="/admin/users/{{.Subject.ID}}/delete">
 			<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-			<button class="danger js-only" hx-post="/admin/users/{{.Subject.ID}}/delete"
-			        hx-confirm="Delete {{.Subject.Username}} and everything they own?">
+			<button class="danger js-only" data-confirm="This removes {{.Subject.Username}}, every collection they own and every object in them. It cannot be undone."
+			        data-confirm-title="Delete {{.Subject.Username}}?" data-confirm-verb="Delete user">
 				{{template "icon-trash" .}} Delete user
 			</button>
 			<a class="button danger no-js-only" href="/admin/users/{{.Subject.ID}}/delete">

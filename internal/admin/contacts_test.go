@@ -404,7 +404,7 @@ func TestContactListPaginates(t *testing.T) {
 	page := "/admin/collections/" + itoa(c.ID)
 	first := body(t, h.get(page))
 
-	if n := strings.Count(first, `class="row-item"`); n != contactsPerPage {
+	if n := strings.Count(first, `<td class="subject">`); n != contactsPerPage {
 		t.Errorf("first page rendered %d rows, want %d", n, contactsPerPage)
 	}
 	if !strings.Contains(first, "Page 1 of 2") {
@@ -415,7 +415,7 @@ func TestContactListPaginates(t *testing.T) {
 	}
 
 	second := body(t, h.get(page+"?page=2"))
-	if n := strings.Count(second, `class="row-item"`); n != 25 {
+	if n := strings.Count(second, `<td class="subject">`); n != 25 {
 		t.Errorf("second page rendered %d rows, want 25", n)
 	}
 	if !strings.Contains(second, "page=1") {
@@ -446,7 +446,7 @@ func TestContactSearchIsServerSide(t *testing.T) {
 	if !strings.Contains(got, "Person 205") {
 		t.Error("search did not reach past the first page")
 	}
-	if n := strings.Count(got, `class="row-item"`); n != 1 {
+	if n := strings.Count(got, `<td class="subject">`); n != 1 {
 		t.Errorf("search returned %d rows, want 1", n)
 	}
 }

@@ -40,25 +40,38 @@ func (s *Server) createCollection(w http.ResponseWriter, r *http.Request) {
 		s.renderStatus(w, r, http.StatusUnprocessableEntity, "user.html", data)
 	}
 
-	if !slugPattern.MatchString(form.URI) {
-		reject("A URL slug may only contain letters, digits, dots, dashes and underscores, and must start with a letter or digit.")
-		return
-	}
-
 	typ := storage.CollectionType(r.PostFormValue("type"))
 	if typ != storage.CollectionCalendar && typ != storage.CollectionAddressBook {
 		reject("Choose either a calendar or an address book.")
 		return
 	}
 
+	// A slug is derived from the name when none was given, so nobody has to
+	// think about URLs to add a calendar. One typed by hand is still checked.
+	derived := form.URI == ""
+	if derived {
+		form.URI = Slugify(form.DisplayName)
+	}
+	if !slugPattern.MatchString(form.URI) {
+		reject("A URL slug may only contain letters, digits, dots, dashes and underscores, and must start with a letter or digit.")
+		return
+	}
+
+	uri := form.URI
+	if derived {
+		// A derived slug collides silently otherwise, and reporting a conflict
+		// with a value nobody typed is not a useful thing to say.
+		uri = s.freeSlug(r, subject.ID, uri)
+	}
+
 	created, err := storage.CreateCollection(r.Context(), s.DB, &storage.Collection{
 		OwnerID:     subject.ID,
 		Type:        typ,
-		URI:         form.URI,
+		URI:         uri,
 		DisplayName: form.DisplayName,
 	})
 	if errors.Is(err, storage.ErrConflict) {
-		reject(fmt.Sprintf("%s already has a collection at %q.", subject.Username, form.URI))
+		reject(fmt.Sprintf("%s already has a collection at %q.", subject.Username, uri))
 		return
 	}
 	if err != nil {
@@ -78,6 +91,13 @@ func (s *Server) showCollection(w http.ResponseWriter, r *http.Request) {
 	data, err := s.collectionPage(r, c, pageData{})
 	if err != nil {
 		s.fail(w, r, "show collection", err)
+		return
+	}
+
+	// Searching and paging swap the results in place, so a keystroke costs one
+	// small response rather than a whole page.
+	if r.Header.Get("HX-Request") == "true" {
+		s.renderFragment(w, r, "collection.html", "collection-results", data)
 		return
 	}
 	s.render(w, r, "collection.html", data)
@@ -198,4 +218,53 @@ func (s *Server) collectionPath(typ storage.CollectionType, username, uri string
 		segment = "addressbooks"
 	}
 	return fmt.Sprintf("%s/%s/%s/%s/", s.DAVPrefix, segment, username, uri)
+}
+
+// Slugify turns a name into something that survives a URL untouched. It is the
+// same transformation the form does as you type, so what the field previews is
+// what the server stores.
+func Slugify(name string) string {
+	var b strings.Builder
+	dash := false
+
+	for _, r := range strings.ToLower(strings.TrimSpace(name)) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			dash = false
+		case r == '.' || r == '_':
+			b.WriteRune(r)
+			dash = false
+		default:
+			// Accented letters and anything else become a separator rather
+			// than being dropped, so "Café Meetings" does not read as
+			// "cafmeetings".
+			if !dash && b.Len() > 0 {
+				b.WriteByte('-')
+				dash = true
+			}
+		}
+	}
+
+	slug := strings.Trim(b.String(), "-._")
+	if slug == "" {
+		return ""
+	}
+	if len(slug) > 60 {
+		slug = strings.Trim(slug[:60], "-._")
+	}
+	return slug
+}
+
+// freeSlug appends a number until the slug is unused, the way a file manager
+// does rather than refusing a name that is already taken.
+func (s *Server) freeSlug(r *http.Request, ownerID int64, slug string) string {
+	candidate := slug
+	for n := 2; n < 100; n++ {
+		if _, err := storage.CollectionByURI(r.Context(), s.DB, ownerID, candidate); err != nil {
+			return candidate
+		}
+		candidate = fmt.Sprintf("%s-%d", slug, n)
+	}
+	return candidate
 }

@@ -202,6 +202,26 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, name string, dat
 	buf.WriteTo(w)
 }
 
+// renderFragment writes one named block rather than a whole page, for a
+// request that is replacing part of what is already on screen.
+func (s *Server) renderFragment(w http.ResponseWriter, r *http.Request, page, name string, data pageData) {
+	t, ok := s.templates[page]
+	if !ok {
+		s.fail(w, r, "unknown template "+page, fmt.Errorf("not parsed"))
+		return
+	}
+
+	var buf bytes.Buffer
+	if err := t.ExecuteTemplate(&buf, name, data); err != nil {
+		s.fail(w, r, "render "+name, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	buf.WriteTo(w)
+}
+
 // renderStatus writes a page under a non-200 status, for a rejected form.
 func (s *Server) renderStatus(w http.ResponseWriter, r *http.Request, code int, name string, data pageData) {
 	w.WriteHeader(code)
