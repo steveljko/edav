@@ -124,13 +124,21 @@ func davHarness(t *testing.T) (*sql.DB, http.Handler) {
 	return db, handler
 }
 
-func request(t *testing.T, h http.Handler, username, password string) int {
-	t.Helper()
+func newBasicRequest(username, password string) *http.Request {
 	req := httptest.NewRequest(http.MethodGet, "/dav/", nil)
 	req.SetBasicAuth(username, password)
+	return req
+}
+
+func recordResponse(h http.Handler, req *http.Request) *httptest.ResponseRecorder {
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
-	return rec.Code
+	return rec
+}
+
+func request(t *testing.T, h http.Handler, username, password string) int {
+	t.Helper()
+	return recordResponse(h, newBasicRequest(username, password)).Code
 }
 
 // A repeated request is the common case, and it must still be authenticated

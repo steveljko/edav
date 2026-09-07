@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -48,6 +49,7 @@ var decoyHash = sync.OnceValue(func() string {
 // Argon2id verification each time costs 17ms and 20MB for no benefit.
 func RequireBasicAuth(db *sql.DB, realm string) func(http.Handler) http.Handler {
 	cache := newCredentialCache(DefaultCredentialTTL)
+	limit := newThrottle(maxFailures, failureWindow)
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -57,8 +59,16 @@ func RequireBasicAuth(db *sql.DB, realm string) func(http.Handler) http.Handler 
 				return
 			}
 
+			now := time.Now()
+			if retry, ok := limit.allow(username, now); !ok {
+				slog.Warn("basic auth throttled", "username", username, "remote", r.RemoteAddr)
+				tooManyAttempts(w, retry)
+				return
+			}
+
 			u, err := authenticate(r.Context(), db, username, password, cache)
 			if err != nil {
+				limit.fail(username, now)
 				if errors.Is(err, ErrMismatch) || errors.Is(err, storage.ErrNotFound) {
 					slog.Info("basic auth rejected", "username", username, "remote", r.RemoteAddr)
 				} else {
@@ -68,6 +78,7 @@ func RequireBasicAuth(db *sql.DB, realm string) func(http.Handler) http.Handler 
 				return
 			}
 
+			limit.succeed(username)
 			next.ServeHTTP(w, r.WithContext(WithUser(r.Context(), u)))
 		})
 	}
@@ -89,7 +100,9 @@ func authenticate(ctx context.Context, db *sql.DB, username, password string, ca
 		// An unknown username costs the same as a known one, so the response
 		// time does not reveal which accounts exist. A cache cannot help here,
 		// and must not: caching this would make the two paths differ.
-		_ = VerifyPassword(decoyHash(), password)
+		_ = withVerificationSlot(ctx, func() error {
+			return VerifyPassword(decoyHash(), password)
+		})
 		return nil, err
 	}
 	if err != nil {
@@ -100,13 +113,29 @@ func authenticate(ctx context.Context, db *sql.DB, username, password string, ca
 	if cache != nil && cache.verified(username, password, u.PasswordHash, now) {
 		return u, nil
 	}
-	if err := VerifyPassword(u.PasswordHash, password); err != nil {
+
+	if err := withVerificationSlot(ctx, func() error {
+		return VerifyPassword(u.PasswordHash, password)
+	}); err != nil {
 		return nil, err
 	}
+
 	if cache != nil {
 		cache.remember(username, password, u.PasswordHash, now)
 	}
 	return u, nil
+}
+
+// tooManyAttempts answers a throttled caller. The same response is given for
+// names that exist and names that do not, so it reveals nothing beyond the
+// fact that someone has been guessing.
+func tooManyAttempts(w http.ResponseWriter, retry time.Duration) {
+	seconds := int(retry.Seconds())
+	if seconds < 1 {
+		seconds = 1
+	}
+	w.Header().Set("Retry-After", strconv.Itoa(seconds))
+	http.Error(w, "too many authentication attempts", http.StatusTooManyRequests)
 }
 
 func challenge(w http.ResponseWriter, realm string) {
