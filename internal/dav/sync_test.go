@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/steveljko/edav/internal/dav/internal"
 )
 
 // multistatus is enough of the response to assert on without asserting the
@@ -364,5 +366,44 @@ func TestCollectionAdvertisesSyncSupport(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// A PROPFIND body is read into memory before it is understood, so it needs a
+// ceiling. Without one the decoder reads whatever arrives.
+func TestOversizedRequestBodyIsRejected(t *testing.T) {
+	h := newHarness(t)
+	h.addressBook("contacts")
+
+	// Well-formed XML, just far too much of it.
+	var b strings.Builder
+	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
+	b.WriteString(`<D:propfind xmlns:D="DAV:"><D:prop>`)
+	for b.Len() < internal.MaxRequestBody+(1<<20) {
+		b.WriteString(`<D:getetag/>`)
+	}
+	b.WriteString(`</D:prop></D:propfind>`)
+
+	resp := h.do("PROPFIND", "/dav/addressbooks/alice/contacts/", b.String(),
+		map[string]string{"Content-Type": "application/xml", "Depth": "0"})
+
+	if resp.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Errorf("status = %d, want 413", resp.StatusCode)
+	}
+}
+
+// The cap must sit well above anything a client legitimately sends.
+func TestOrdinaryRequestBodyIsAccepted(t *testing.T) {
+	h := newHarness(t)
+	h.addressBook("contacts")
+	h.put("/dav/addressbooks/alice/contacts/ada.vcf", adaCard)
+
+	const propfind = `<?xml version="1.0" encoding="UTF-8"?>
+<D:propfind xmlns:D="DAV:"><D:prop><D:getetag/></D:prop></D:propfind>`
+
+	resp := h.do("PROPFIND", "/dav/addressbooks/alice/contacts/", propfind,
+		map[string]string{"Content-Type": "application/xml", "Depth": "1"})
+	if resp.StatusCode != http.StatusMultiStatus {
+		t.Errorf("status = %d, want 207", resp.StatusCode)
 	}
 }

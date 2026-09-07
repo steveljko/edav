@@ -33,12 +33,23 @@ func isContentXML(h http.Header) bool {
 	return t == "application/xml" || t == "text/xml"
 }
 
+// MaxRequestBody caps a PROPFIND or REPORT body. A multiget naming every
+// object in a large collection is the biggest legitimate request, and stays
+// far below this; without a cap the decoder will read whatever it is given.
+const MaxRequestBody = 8 << 20
+
 func DecodeXMLRequest(r *http.Request, v interface{}) error {
 	if !isContentXML(r.Header) {
 		return HTTPErrorf(http.StatusBadRequest, "webdav: expected application/xml request")
 	}
 
-	if err := xml.NewDecoder(r.Body).Decode(v); err != nil {
+	body := http.MaxBytesReader(nil, r.Body, MaxRequestBody)
+	if err := xml.NewDecoder(body).Decode(v); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			return HTTPErrorf(http.StatusRequestEntityTooLarge,
+				"webdav: request body over %d bytes", MaxRequestBody)
+		}
 		return &HTTPError{http.StatusBadRequest, err}
 	}
 	return nil
