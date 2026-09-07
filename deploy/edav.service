@@ -1,0 +1,43 @@
+# Running the binary directly, without Docker. Put the binary at
+# /usr/local/bin/edav and this file at /etc/systemd/system/edav.service.
+#
+#   sudo useradd --system --home /var/lib/edav --create-home edav
+#   sudo install -m 0755 edav /usr/local/bin/edav
+#   sudo install -m 0600 -o edav -g edav edav.env /etc/edav.env
+#   sudo systemctl enable --now edav
+
+[Unit]
+Description=edav CalDAV and CardDAV server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=edav
+Group=edav
+ExecStart=/usr/local/bin/edav
+EnvironmentFile=/etc/edav.env
+Restart=on-failure
+RestartSec=5s
+
+# The process needs nothing but its own data directory.
+StateDirectory=edav
+WorkingDirectory=/var/lib/edav
+ReadWritePaths=/var/lib/edav
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

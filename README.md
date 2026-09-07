@@ -37,6 +37,39 @@ docker run -d --name edav \
 `docker-compose.yml` in this repository is a working example. The image is built
 from `scratch` and runs as UID 65532; the database lives in the `/data` volume.
 
+### On a server, with a domain
+
+`deploy/` has the pieces: a Caddyfile, an nginx site, a systemd unit and a
+backup script. The Docker Compose file runs edav behind Caddy, which obtains
+and renews the certificate itself.
+
+```sh
+git clone https://github.com/steveljko/edav && cd edav
+
+cp deploy/edav.env.example edav.env
+chmod 600 edav.env
+printf 'EDAV_ADMIN_PASSWORD=%s\n' "$(openssl rand -base64 24)" > edav.env
+
+# Put your domain in both files.
+sed -i 's/dav.example.com/dav.yourdomain.tld/' docker-compose.yml deploy/Caddyfile
+
+docker compose up -d --build
+```
+
+Point an `A` record (and `AAAA`, if the server has IPv6) at the server first;
+Caddy needs the name to resolve before it can be issued a certificate.
+
+Nothing but the proxy listens publicly: edav is reachable only from inside the
+compose network.
+
+### Backups
+
+The database is one SQLite file, but copying it while the server runs is not
+safe — WAL mode keeps recent writes in a separate file. `deploy/backup.sh` takes
+a consistent snapshot with `VACUUM INTO`, checks it, and prunes old ones.
+
+Restoring is putting the file back in place and starting the server.
+
 ### From source
 
 Go 1.26 or newer. No CGO, and no build step for the assets.

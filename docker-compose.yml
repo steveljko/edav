@@ -1,11 +1,11 @@
 services:
   edav:
-    image: ghcr.io/steveljko/edav:latest
-    # Or build it yourself:
-    # build: .
+    build: .
+    image: edav:latest
     restart: unless-stopped
-    ports:
-      - "8080:8080"
+    # Only the proxy reaches it; nothing needs to hit the port from outside.
+    expose:
+      - "8080"
     volumes:
       - edav-data:/data
     environment:
@@ -14,11 +14,28 @@ services:
       # would then show the wrong one.
       EDAV_BASE_URL: https://dav.example.com
       EDAV_ADMIN_USERNAME: admin
-      # Move this into a secret or an env file before running this anywhere real.
-      EDAV_ADMIN_PASSWORD: change-me-before-first-start
       # Leave true wherever TLS terminates in front of this. Only set it false
       # to sign in to the admin interface over plain HTTP locally.
       EDAV_SECURE_COOKIES: "true"
+    env_file:
+      # Holds EDAV_ADMIN_PASSWORD, so the password is not in a file that is
+      # committed. See deploy/edav.env.example.
+      - edav.env
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - edav
 
 volumes:
   edav-data:
+  caddy-data:
+  caddy-config:
