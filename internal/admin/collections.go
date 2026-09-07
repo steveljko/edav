@@ -100,8 +100,19 @@ func (s *Server) collectionPage(r *http.Request, c *storage.Collection, data pag
 
 	if c.Type == storage.CollectionAddressBook {
 		data.IsAddressBook = true
-		if data.Contacts, err = s.contactRows(r, c.ID); err != nil {
+		data.Query = strings.TrimSpace(r.URL.Query().Get("q"))
+
+		var total int
+		if data.Contacts, total, data.Page, err = s.contactRows(r, c.ID); err != nil {
 			return data, err
+		}
+		data.MatchCount = total
+		data.Pages = (total + contactsPerPage - 1) / contactsPerPage
+		if data.Page > 1 {
+			data.PrevPage = data.Page - 1
+		}
+		if data.Page < data.Pages {
+			data.NextPage = data.Page + 1
 		}
 	}
 

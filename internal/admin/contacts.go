@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,10 +21,19 @@ type contactRow struct {
 	UID  string
 }
 
-func (s *Server) contactRows(r *http.Request, collectionID int64) ([]contactRow, error) {
-	objects, err := storage.ListObjects(r.Context(), s.DB, collectionID)
+// contactsPerPage is what one page of an address book shows. Large enough that
+// a household never sees a second page, small enough that importing thousands
+// of contacts does not turn this into a document nobody can load.
+const contactsPerPage = 200
+
+func (s *Server) contactRows(r *http.Request, collectionID int64) ([]contactRow, int, int, error) {
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	page := max(atoiOr(r.URL.Query().Get("page"), 1), 1)
+
+	objects, total, err := storage.SearchObjects(r.Context(), s.DB, collectionID,
+		query, contactsPerPage, (page-1)*contactsPerPage)
 	if err != nil {
-		return nil, err
+		return nil, 0, 0, err
 	}
 
 	rows := make([]contactRow, 0, len(objects))
@@ -34,7 +44,15 @@ func (s *Server) contactRows(r *http.Request, collectionID int64) ([]contactRow,
 		}
 		rows = append(rows, contactRow{URI: o.URI, Name: name, UID: o.UID})
 	}
-	return rows, nil
+	return rows, total, page, nil
+}
+
+func atoiOr(s string, fallback int) int {
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return fallback
+	}
+	return n
 }
 
 // addressBookOf resolves a collection that must be an address book, since the

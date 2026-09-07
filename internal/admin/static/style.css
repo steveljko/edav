@@ -686,8 +686,8 @@ code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; 
 
 /* Search ----------------------------------------------------------------- */
 
-.search { position: relative; margin-bottom: var(--s3); }
-.search input { padding-left: var(--s6); }
+.search { position: relative; margin-bottom: var(--s3); display: flex; gap: var(--s2); }
+.search input { padding-left: var(--s6); flex: 1; }
 .search svg {
 	position: absolute;
 	left: var(--s3);
@@ -697,6 +697,15 @@ code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; 
 	height: 15px;
 	color: var(--text-faint);
 	pointer-events: none;
+}
+
+.pager {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--s3);
+	margin-top: var(--s3);
+	font-size: var(--text-sm);
 }
 
 /* Login ------------------------------------------------------------------ */

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -190,6 +191,59 @@ func ObjectsInTimeRange(ctx context.Context, db *sql.DB, collectionID int64, fro
 		objects = append(objects, o)
 	}
 	return objects, rows.Err()
+}
+
+// SearchObjects returns one page of a collection, optionally narrowed by a
+// case-insensitive match on the indexed display name or URI, alongside how many
+// match in total. Listing every object of a large collection at once is what
+// turns an administration page into a multi-megabyte document.
+func SearchObjects(ctx context.Context, db *sql.DB, collectionID int64, query string, limit, offset int) ([]*Object, int, error) {
+	where := `WHERE collection_id = ?`
+	args := []any{collectionID}
+
+	if query = strings.TrimSpace(query); query != "" {
+		// ESCAPE keeps a literal % or _ in the search text from turning into a
+		// wildcard, which would quietly match far more than was asked for.
+		pattern := "%" + escapeLike(query) + "%"
+		where += ` AND (display_name LIKE ? ESCAPE '\' OR uri LIKE ? ESCAPE '\')`
+		args = append(args, pattern, pattern)
+	}
+
+	var total int
+	if err := db.QueryRowContext(ctx,
+		`SELECT count(*) FROM objects `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count objects in collection %d: %w", collectionID, err)
+	}
+
+	if limit <= 0 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	rows, err := db.QueryContext(ctx,
+		`SELECT `+objectColumns+` FROM objects `+where+
+			` ORDER BY display_name COLLATE NOCASE, uri LIMIT ? OFFSET ?`,
+		append(args, limit, offset)...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("search objects in collection %d: %w", collectionID, err)
+	}
+	defer rows.Close()
+
+	var objects []*Object
+	for rows.Next() {
+		o, err := scanObject(rows)
+		if err != nil {
+			return nil, 0, fmt.Errorf("search objects in collection %d: %w", collectionID, err)
+		}
+		objects = append(objects, o)
+	}
+	return objects, total, rows.Err()
+}
+
+func escapeLike(s string) string {
+	return strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(s)
 }
 
 func DeleteObject(ctx context.Context, db *sql.DB, collectionID int64, uri string) error {

@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -384,5 +385,99 @@ func TestClearingAFieldRemovesThePropertyAndItsLabel(t *testing.T) {
 	}
 	if !strings.Contains(raw, "PHOTO;ENCODING=b") {
 		t.Errorf("clearing a field removed something unrelated:\n%s", raw)
+	}
+}
+
+// A large address book must not render as one enormous document.
+func TestContactListPaginates(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+	c := h.addressBook("contacts")
+
+	for i := range contactsPerPage + 25 {
+		name := fmt.Sprintf("Person %03d", i)
+		card := strings.Replace(phoneCard, "FN:Ada Lovelace", "FN:"+name, 1)
+		card = strings.Replace(card, "UID:ada-1", fmt.Sprintf("UID:p-%03d", i), 1)
+		h.storeCard(c, fmt.Sprintf("p%03d.vcf", i), card)
+	}
+
+	page := "/admin/collections/" + itoa(c.ID)
+	first := body(t, h.get(page))
+
+	if n := strings.Count(first, `class="row-item"`); n != contactsPerPage {
+		t.Errorf("first page rendered %d rows, want %d", n, contactsPerPage)
+	}
+	if !strings.Contains(first, "Page 1 of 2") {
+		t.Errorf("no pager on an over-long list:\n%s", first[:min(len(first), 2000)])
+	}
+	if !strings.Contains(first, "page=2") {
+		t.Error("no link to the next page")
+	}
+
+	second := body(t, h.get(page+"?page=2"))
+	if n := strings.Count(second, `class="row-item"`); n != 25 {
+		t.Errorf("second page rendered %d rows, want 25", n)
+	}
+	if !strings.Contains(second, "page=1") {
+		t.Error("no link back to the first page")
+	}
+}
+
+// The search box has to reach the whole collection, not only the page in view.
+func TestContactSearchIsServerSide(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+	c := h.addressBook("contacts")
+
+	for i := range contactsPerPage + 10 {
+		name := fmt.Sprintf("Person %03d", i)
+		card := strings.Replace(phoneCard, "FN:Ada Lovelace", "FN:"+name, 1)
+		card = strings.Replace(card, "UID:ada-1", fmt.Sprintf("UID:p-%03d", i), 1)
+		h.storeCard(c, fmt.Sprintf("p%03d.vcf", i), card)
+	}
+
+	// A name that only exists past the first page.
+	page := "/admin/collections/" + itoa(c.ID)
+	if strings.Contains(body(t, h.get(page)), "Person 205") {
+		t.Fatal("the test name is on the first page, so it proves nothing")
+	}
+
+	got := body(t, h.get(page+"?q=Person+205"))
+	if !strings.Contains(got, "Person 205") {
+		t.Error("search did not reach past the first page")
+	}
+	if n := strings.Count(got, `class="row-item"`); n != 1 {
+		t.Errorf("search returned %d rows, want 1", n)
+	}
+}
+
+func TestContactSearchWithNoMatchesExplainsItself(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+	c := h.addressBook("contacts")
+	h.storeCard(c, "ada.vcf", phoneCard)
+
+	got := body(t, h.get("/admin/collections/"+itoa(c.ID)+"?q=nobody"))
+	if !strings.Contains(got, "Nothing matches") {
+		t.Errorf("an empty result does not explain itself:\n%s", got)
+	}
+	if !strings.Contains(got, "show everything") {
+		t.Error("no way back to the unfiltered list")
+	}
+}
+
+// Searching must work with scripting off, which means a real form submission.
+func TestContactSearchWorksWithoutScripting(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+	c := h.addressBook("contacts")
+	h.storeCard(c, "ada.vcf", phoneCard)
+
+	got := body(t, h.get("/admin/collections/"+itoa(c.ID)))
+	if !strings.Contains(got, `<form method="get"`) {
+		t.Error("the search box is not a form, so it needs scripting to work")
+	}
+	if !strings.Contains(got, `name="q"`) {
+		t.Error("the search input has no name to submit under")
 	}
 }

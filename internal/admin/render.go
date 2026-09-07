@@ -108,6 +108,12 @@ type pageData struct {
 	CollectionURL string
 	IsAddressBook bool
 	Contacts      []contactRow
+	Query         string
+	MatchCount    int
+	Page          int
+	Pages         int
+	PrevPage      int
+	NextPage      int
 	Contact       *vcard.Contact
 	ContactURI    string
 	ContactAction string

@@ -25,12 +25,14 @@
 
 {{if .IsAddressBook}}
 <h2>Contacts</h2>
-{{if .Contacts}}
-<div class="search js-only">
+{{if or .Contacts .Query}}
+<form method="get" action="/admin/collections/{{.Collection.ID}}" class="search">
 	{{template "icon-search" .}}
 	<label for="contact-filter" class="visually-hidden">Search contacts</label>
-	<input type="search" id="contact-filter" data-filter="contact-list" placeholder="Search contacts" autocomplete="off">
-</div>
+	<input type="search" id="contact-filter" name="q" value="{{.Query}}"
+	       data-filter="contact-list" placeholder="Search contacts" autocomplete="off">
+	<button type="submit" class="no-js-only small">Search</button>
+</form>
 {{end}}
 <div class="card">
 	<div class="list" id="contact-list">
@@ -44,18 +46,41 @@
 			</span>
 		</a>
 	{{else}}
+		{{if .Query}}
+		<div class="empty">
+			<div class="headline">Nothing matches “{{.Query}}”</div>
+			<p>Try a different search, or <a href="/admin/collections/{{.Collection.ID}}">show everything</a>.</p>
+		</div>
+		{{else}}
 		<div class="empty">
 			<div class="headline">No contacts yet</div>
 			<p>Add one here, or let a client sync them in.</p>
 			<a class="button primary" href="/admin/collections/{{.Collection.ID}}/contacts/new">Add a contact</a>
 		</div>
+		{{end}}
 	{{end}}
 		<div class="empty" data-filter-empty hidden>
-			<div class="headline">Nothing matches</div>
-			<p>Try a different search.</p>
+			<div class="headline">Nothing matches on this page</div>
+			<p>Press Enter to search the whole address book.</p>
 		</div>
 	</div>
 </div>
+
+{{if gt .Pages 1}}
+<nav class="pager" aria-label="Contact pages">
+	{{if .PrevPage}}
+		<a class="button small" href="?{{if .Query}}q={{.Query}}&amp;{{end}}page={{.PrevPage}}">Previous</a>
+	{{else}}
+		<span></span>
+	{{end}}
+	<span class="muted">Page {{.Page}} of {{.Pages}} · {{.MatchCount}} contact{{if ne .MatchCount 1}}s{{end}}</span>
+	{{if .NextPage}}
+		<a class="button small" href="?{{if .Query}}q={{.Query}}&amp;{{end}}page={{.NextPage}}">Next</a>
+	{{else}}
+		<span></span>
+	{{end}}
+</nav>
+{{end}}
 {{end}}
 
 <h2>Address for clients</h2>
