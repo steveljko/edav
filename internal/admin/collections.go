@@ -98,22 +98,31 @@ func (s *Server) collectionPage(r *http.Request, c *storage.Collection, data pag
 	}
 	data.CollectionURL = s.baseURL(r) + s.collectionPath(c.Type, owner.Username, c.URI)
 
-	if c.Type == storage.CollectionAddressBook {
-		data.IsAddressBook = true
-		data.Query = strings.TrimSpace(r.URL.Query().Get("q"))
+	data.Query = strings.TrimSpace(r.URL.Query().Get("q"))
 
-		var total int
+	var total, perPage int
+	switch c.Type {
+	case storage.CollectionAddressBook:
+		data.IsAddressBook = true
+		perPage = contactsPerPage
 		if data.Contacts, total, data.Page, err = s.contactRows(r, c.ID); err != nil {
 			return data, err
 		}
-		data.MatchCount = total
-		data.Pages = (total + contactsPerPage - 1) / contactsPerPage
-		if data.Page > 1 {
-			data.PrevPage = data.Page - 1
+	case storage.CollectionCalendar:
+		data.IsCalendar = true
+		perPage = eventsPerPage
+		if data.Events, total, data.Page, err = s.eventRows(r, c.ID); err != nil {
+			return data, err
 		}
-		if data.Page < data.Pages {
-			data.NextPage = data.Page + 1
-		}
+	}
+
+	data.MatchCount = total
+	data.Pages = (total + perPage - 1) / perPage
+	if data.Page > 1 {
+		data.PrevPage = data.Page - 1
+	}
+	if data.Page < data.Pages {
+		data.NextPage = data.Page + 1
 	}
 
 	title := c.DisplayName

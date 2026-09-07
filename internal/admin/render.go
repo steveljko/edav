@@ -6,8 +6,10 @@ import (
 	"html/template"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/steveljko/edav/internal/auth"
+	"github.com/steveljko/edav/internal/ical"
 	"github.com/steveljko/edav/internal/storage"
 	"github.com/steveljko/edav/internal/vcard"
 )
@@ -22,13 +24,27 @@ var pages = []string{
 	"confirm.html",
 	"setup.html",
 	"contact.html",
+	"event.html",
 }
 
 // funcs are the few helpers the templates need. Anything more involved is
 // computed in Go and handed over as data.
 var funcs = template.FuncMap{
-	"initials": initials,
-	"lower":    strings.ToLower,
+	"initials":      initials,
+	"lower":         strings.ToLower,
+	"formatDate":    func(t time.Time) string { return t.Format("2006-01-02") },
+	"formatClock":   func(t time.Time) string { return t.Format("15:04") },
+	"formatEndDate": formatEndDate,
+}
+
+// formatEndDate renders the end for a date input. A whole-day event ends the
+// day after the last one it covers, which is right on the wire and wrong in a
+// form, where a person picks the last day itself.
+func formatEndDate(e *ical.Event) string {
+	if e.AllDay && e.End.After(e.Start) {
+		return e.End.AddDate(0, 0, -1).Format("2006-01-02")
+	}
+	return e.End.Format("2006-01-02")
 }
 
 func (s *Server) parseTemplates() error {
@@ -118,6 +134,15 @@ type pageData struct {
 	ContactURI    string
 	ContactAction string
 	TypeOptions   []string
+
+	IsCalendar    bool
+	Events        []eventRow
+	Event         *ical.Event
+	EventURI      string
+	EventAction   string
+	Repeats       []repeatOption
+	RepeatSummary string
+	HasOverrides  bool
 	Confirm       confirmation
 
 	// Client setup.

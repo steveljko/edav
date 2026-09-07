@@ -95,7 +95,15 @@ so a client resending them on every request of a sync does not pay for each one.
 ## Administration
 
 Open `/admin` and sign in with `EDAV_ADMIN_USERNAME` and `EDAV_ADMIN_PASSWORD`.
-From there you can add users, reset passwords, and create or edit collections.
+From there you can add users, reset passwords, create or edit collections, and
+add, edit and delete contacts and events.
+
+An edit made here rewrites only the fields the form shows. Everything else the
+object carries — a contact's photo and custom labels, an event's reminders,
+guests and repeat rule — is left exactly as the client wrote it. A repeating
+event can be renamed and moved here, but the repeat itself is only editable in
+a calendar client, which can express exceptions and individually moved
+occurrences.
 The **Client setup** page shows the exact addresses to give each client.
 
 The session cookie is `Secure` by default, which browsers refuse to send over

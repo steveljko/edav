@@ -144,6 +144,26 @@
 		if (input) input.focus();
 	});
 
+	// An all-day event has no times to fill in, so the time fields go away
+	// rather than sitting there ignored. Without scripting they stay visible
+	// and are simply not read.
+	document.addEventListener("change", function (event) {
+		var toggle = event.target.closest("[data-toggle]");
+		if (!toggle) return;
+
+		document.querySelectorAll("." + toggle.getAttribute("data-toggle")).forEach(function (field) {
+			field.classList.toggle("is-hidden", toggle.checked);
+		});
+	});
+
+	// Keep the end from preceding the start while a date is being picked.
+	document.addEventListener("change", function (event) {
+		if (event.target.id !== "start_date") return;
+
+		var end = document.getElementById("end_date");
+		if (end && end.value && end.value < event.target.value) end.value = event.target.value;
+	});
+
 	// Remove a row outright, rather than clearing it and remembering that an
 	// empty value means removal.
 	document.addEventListener("click", function (event) {

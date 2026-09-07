@@ -21,6 +21,11 @@
 		{{template "icon-plus" .}} Add a contact
 	</a>
 	{{end}}
+	{{if .IsCalendar}}
+	<a class="button primary" href="/admin/collections/{{.Collection.ID}}/events/new">
+		{{template "icon-plus" .}} Add an event
+	</a>
+	{{end}}
 </div>
 
 {{if .IsAddressBook}}
@@ -79,6 +84,63 @@
 	{{else}}
 		<span></span>
 	{{end}}
+</nav>
+{{end}}
+{{end}}
+
+{{if .IsCalendar}}
+<h2>Events</h2>
+{{if or .Events .Query}}
+<form method="get" action="/admin/collections/{{.Collection.ID}}" class="search">
+	{{template "icon-search" .}}
+	<label for="event-filter" class="visually-hidden">Search events</label>
+	<input type="search" id="event-filter" name="q" value="{{.Query}}"
+	       data-filter="event-list" placeholder="Search events" autocomplete="off">
+	<button type="submit" class="no-js-only small">Search</button>
+</form>
+{{end}}
+<div class="card">
+	<div class="list" id="event-list">
+	{{range .Events}}
+		<a class="row-item{{if .Past}} is-past{{end}}" data-search="{{lower .Summary}} {{lower .URI}}"
+		   href="/admin/collections/{{$.Collection.ID}}/events/{{.URI}}">
+			<span class="avatar square calendar">31</span>
+			<span class="row-main">
+				<span class="row-title">{{.Summary}}</span>
+				<span class="row-sub">{{.When}}</span>
+			</span>
+			{{if .Recurring}}<span class="badge calendar">repeats</span>{{end}}
+		</a>
+	{{else}}
+		{{if .Query}}
+		<div class="empty">
+			<div class="headline">Nothing matches “{{.Query}}”</div>
+			<p>Try a different search, or <a href="/admin/collections/{{.Collection.ID}}">show everything</a>.</p>
+		</div>
+		{{else}}
+		<div class="empty">
+			<div class="headline">No events yet</div>
+			<p>Add one here, or let a client sync them in.</p>
+			<a class="button primary" href="/admin/collections/{{.Collection.ID}}/events/new">Add an event</a>
+		</div>
+		{{end}}
+	{{end}}
+		<div class="empty" data-filter-empty hidden>
+			<div class="headline">Nothing matches on this page</div>
+			<p>Press Enter to search the whole calendar.</p>
+		</div>
+	</div>
+</div>
+
+{{if gt .Pages 1}}
+<nav class="pager" aria-label="Event pages">
+	{{if .PrevPage}}
+		<a class="button small" href="?{{if .Query}}q={{.Query}}&amp;{{end}}page={{.PrevPage}}">Previous</a>
+	{{else}}<span></span>{{end}}
+	<span class="muted">Page {{.Page}} of {{.Pages}} · {{.MatchCount}} event{{if ne .MatchCount 1}}s{{end}}</span>
+	{{if .NextPage}}
+		<a class="button small" href="?{{if .Query}}q={{.Query}}&amp;{{end}}page={{.NextPage}}">Next</a>
+	{{else}}<span></span>{{end}}
 </nav>
 {{end}}
 {{end}}

@@ -1,0 +1,126 @@
+{{define "content"}}
+<p class="crumb"><a href="/admin/">Users</a> <span>/</span>
+	<a href="/admin/users/{{.Subject.ID}}">{{.Subject.Username}}</a> <span>/</span>
+	<a href="/admin/collections/{{.Collection.ID}}">{{if .Collection.DisplayName}}{{.Collection.DisplayName}}{{else}}{{.Collection.URI}}{{end}}</a>
+	<span>/</span> <span>{{if .EventURI}}{{.Event.Summary}}{{else}}New event{{end}}</span></p>
+
+<div class="page-head">
+	<div class="identity">
+		<span class="avatar square lg calendar">{{if .EventURI}}31{{else}}+{{end}}</span>
+		<div>
+			<h1>{{if .EventURI}}{{.Event.Summary}}{{else}}New event{{end}}</h1>
+			{{if .EventURI}}<p class="subtitle mono">{{.EventURI}}</p>{{end}}
+		</div>
+	</div>
+</div>
+
+{{if .EventURI}}
+<p class="notice info">{{template "icon-check" .}}<span>Only the fields below are rewritten when you
+save. Reminders, guests and anything else this event carries are left exactly as they are.</span></p>
+{{end}}
+
+{{if .RepeatSummary}}
+<p class="notice info">{{template "icon-repeat" .}}<span><strong>{{.RepeatSummary}}.</strong>
+	The repeat itself is not editable here{{if .HasOverrides}}, and this event has occurrences that
+	were moved or changed individually{{end}} — change it in a calendar client, which can express
+	exceptions. Editing anything below leaves the repeat untouched.</span></p>
+{{end}}
+
+<form method="post" action="{{.EventAction}}">
+	<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+	{{if .Event.UID}}<input type="hidden" name="uid" value="{{.Event.UID}}">{{end}}
+
+	<h2>Event</h2>
+	<div class="card pad">
+		<div class="field">
+			<label for="summary">Title</label>
+			<input type="text" id="summary" name="summary" value="{{.Event.Summary}}" autofocus required>
+		</div>
+		<div class="field">
+			<label for="location">Location</label>
+			<input type="text" id="location" name="location" value="{{.Event.Location}}">
+		</div>
+	</div>
+
+	<h2>When</h2>
+	<div class="card pad">
+		<div class="field">
+			<label class="checkbox">
+				<input type="checkbox" name="all_day" value="1" data-toggle="timed-fields"{{if .Event.AllDay}} checked{{end}}>
+				All day
+			</label>
+		</div>
+		<div class="row">
+			<div class="field">
+				<label for="start_date">Starts</label>
+				<input type="date" id="start_date" name="start_date" value="{{formatDate .Event.Start}}" required>
+			</div>
+			<div class="field narrow timed-fields{{if .Event.AllDay}} is-hidden{{end}}">
+				<label for="start_time">at</label>
+				<input type="time" id="start_time" name="start_time" value="{{formatClock .Event.Start}}">
+			</div>
+			<div class="field">
+				<label for="end_date">Ends</label>
+				<input type="date" id="end_date" name="end_date" value="{{formatEndDate .Event}}" required>
+			</div>
+			<div class="field narrow timed-fields{{if .Event.AllDay}} is-hidden{{end}}">
+				<label for="end_time">at</label>
+				<input type="time" id="end_time" name="end_time" value="{{formatClock .Event.End}}">
+			</div>
+		</div>
+		<div class="field timed-fields{{if .Event.AllDay}} is-hidden{{end}}">
+			<label for="timezone">Time zone</label>
+			<input type="text" id="timezone" name="timezone" value="{{.Event.Timezone}}"
+			       placeholder="Europe/Berlin" autocapitalize="none" spellcheck="false">
+			<p class="hint">An IANA name. Leave blank to store the times in UTC.</p>
+		</div>
+	</div>
+
+	{{if not .EventURI}}
+	<h2>Repeat</h2>
+	<div class="card pad">
+		<div class="field">
+			<label for="recurrence" class="visually-hidden">Repeat</label>
+			<select id="recurrence" name="recurrence">
+				{{range .Repeats}}<option value="{{.Value}}">{{.Label}}</option>{{end}}
+			</select>
+			<p class="hint">A calendar client can set up something more involved, with exceptions
+				and individually moved occurrences.</p>
+		</div>
+	</div>
+	{{else if .Event.Recurrence}}
+	<input type="hidden" name="recurrence" value="{{.Event.Recurrence}}">
+	{{end}}
+
+	<h2>Notes</h2>
+	<div class="card pad">
+		<div class="field">
+			<label for="description" class="visually-hidden">Notes</label>
+			<textarea id="description" name="description" placeholder="Anything else worth remembering">{{.Event.Description}}</textarea>
+		</div>
+	</div>
+
+	<div class="actions-bar">
+		<button type="submit" class="primary">{{if .EventURI}}Save event{{else}}Create event{{end}}</button>
+		<a class="button" href="/admin/collections/{{.Collection.ID}}">Cancel</a>
+	</div>
+</form>
+
+{{if .EventURI}}
+<h2>Danger zone</h2>
+<div class="card pad danger-zone">
+	<form method="post" action="/admin/collections/{{.Collection.ID}}/events/{{.EventURI}}/delete">
+		<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+		<button class="danger js-only"
+		        hx-post="/admin/collections/{{.Collection.ID}}/events/{{.EventURI}}/delete"
+		        hx-confirm="Delete {{.Event.Summary}}?">
+			{{template "icon-trash" .}} Delete event
+		</button>
+		<a class="button danger no-js-only"
+		   href="/admin/collections/{{.Collection.ID}}/events/{{.EventURI}}/delete">
+			{{template "icon-trash" .}} Delete event
+		</a>
+	</form>
+</div>
+{{end}}
+{{end}}

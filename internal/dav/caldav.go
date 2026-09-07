@@ -260,7 +260,7 @@ func (b *CalDAVBackend) PutCalendarObject(ctx context.Context, path string, raw 
 		return nil, err
 	}
 
-	bounds, err := calendarIndex(raw)
+	bounds, err := CalendarIndex(raw)
 	if err != nil {
 		return nil, internal.HTTPErrorf(http.StatusBadRequest, "caldav: %v", err)
 	}
@@ -425,8 +425,10 @@ func (b *CalDAVBackend) resolve(ctx context.Context, path string) (*storage.User
 	return (&CardDAVBackend{DB: b.DB, Paths: b.Paths}).resolve(ctx, path)
 }
 
-// calendarIndex derives the columns stored alongside an object.
-func calendarIndex(raw []byte) (recurrence.Bounds, error) {
+// CalendarIndex derives the columns stored alongside an object. It is exported
+// so a write made through the admin interface indexes exactly as a client's
+// PUT does, rather than by a second implementation that could drift.
+func CalendarIndex(raw []byte) (recurrence.Bounds, error) {
 	cal, err := ical.NewDecoder(bytes.NewReader(raw)).Decode()
 	if err != nil {
 		return recurrence.Bounds{}, fmt.Errorf("parse iCalendar: %w", err)
