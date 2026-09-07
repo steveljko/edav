@@ -80,7 +80,7 @@ func run(cfg *config.Config) error {
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           handler,
+		Handler:           commonHeaders(handler),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -132,6 +132,24 @@ func healthcheck(addr string) error {
 		return fmt.Errorf("healthcheck: /healthz returned %s", resp.Status)
 	}
 	return nil
+}
+
+// commonHeaders applies what every response wants, DAV included. Anything
+// specific to the admin interface, such as its content security policy, is set
+// there instead.
+//
+// HSTS is deliberately absent: TLS terminates in front of this server, and the
+// proxy that holds the certificate is the thing that knows whether promising a
+// year of HTTPS is safe.
+func commonHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		if h.Get("Referrer-Policy") == "" {
+			h.Set("Referrer-Policy", "no-referrer")
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func seedAdmin(ctx context.Context, db *sql.DB, cfg *config.Config) error {

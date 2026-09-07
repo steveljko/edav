@@ -259,3 +259,68 @@ func TestPagesUseTheSpacingScaleNotInlineStyles(t *testing.T) {
 		})
 	}
 }
+
+// An admin page that can be framed is a delete confirmation an attacker can
+// collect the click for.
+func TestAdminPagesCarryASecurityPolicy(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+
+	for _, path := range []string{"/admin/", "/admin/login", "/admin/setup", "/admin/static/style.css"} {
+		t.Run(path, func(t *testing.T) {
+			resp := h.get(path)
+
+			csp := resp.Header.Get("Content-Security-Policy")
+			for _, want := range []string{
+				"default-src 'self'",
+				"frame-ancestors 'none'",
+				"base-uri 'none'",
+				"form-action 'self'",
+				"script-src 'self' 'nonce-",
+			} {
+				if !strings.Contains(csp, want) {
+					t.Errorf("policy is missing %q: %s", want, csp)
+				}
+			}
+			if strings.Contains(csp, "script-src") && strings.Contains(csp, "'unsafe-inline' 'nonce") {
+				t.Error("scripts allow unsafe-inline, which defeats the nonce")
+			}
+			if got := resp.Header.Get("X-Frame-Options"); got != "DENY" {
+				t.Errorf("X-Frame-Options = %q, want DENY", got)
+			}
+			if got := resp.Header.Get("Referrer-Policy"); got != "no-referrer" {
+				t.Errorf("Referrer-Policy = %q, want no-referrer", got)
+			}
+		})
+	}
+}
+
+// The nonce admits the theme script and nothing else, so it has to be fresh
+// each time and actually present on the tag.
+func TestScriptNonceIsPerRequestAndUsed(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+
+	nonces := make(map[string]bool)
+	for range 3 {
+		resp := h.get("/admin/")
+		csp := resp.Header.Get("Content-Security-Policy")
+
+		_, rest, ok := strings.Cut(csp, "'nonce-")
+		if !ok {
+			t.Fatalf("no nonce in the policy: %s", csp)
+		}
+		nonce, _, _ := strings.Cut(rest, "'")
+		if len(nonce) < 16 {
+			t.Errorf("nonce %q is too short to be worth having", nonce)
+		}
+		if nonces[nonce] {
+			t.Errorf("nonce %q was reused across requests", nonce)
+		}
+		nonces[nonce] = true
+
+		if got := body(t, resp); !strings.Contains(got, `nonce="`+nonce+`"`) {
+			t.Error("the page does not carry the nonce its policy admits")
+		}
+	}
+}

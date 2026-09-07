@@ -54,18 +54,19 @@ func (s *Server) Register(mux *http.ServeMux) error {
 	}
 	s.logins = auth.NewLoginThrottle()
 
-	mux.Handle("GET /admin/static/", http.StripPrefix("/admin/", http.FileServerFS(staticFS)))
+	mux.Handle("GET /admin/static/", secureHeaders(
+		http.StripPrefix("/admin/", http.FileServerFS(staticFS))))
 
-	mux.HandleFunc("GET "+loginPath, s.showLogin)
-	mux.HandleFunc("POST "+loginPath, s.doLogin)
+	mux.Handle("GET "+loginPath, secureHeaders(http.HandlerFunc(s.showLogin)))
+	mux.Handle("POST "+loginPath, secureHeaders(http.HandlerFunc(s.doLogin)))
 
 	// Logout only needs a session, not administrator rights: an account that
 	// has just been demoted must still be able to sign out.
 	session := s.Sessions.RequireSession(loginPath)
-	mux.Handle("POST /admin/logout", session(http.HandlerFunc(s.doLogout)))
+	mux.Handle("POST /admin/logout", secureHeaders(session(http.HandlerFunc(s.doLogout))))
 
 	admin := func(h http.HandlerFunc) http.Handler {
-		return session(s.requireAdmin(h))
+		return secureHeaders(session(s.requireAdmin(h)))
 	}
 
 	mux.Handle("GET /admin/{$}", admin(s.listUsers))

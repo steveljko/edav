@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}} · edav</title>
-<script>
+<script nonce="{{.Nonce}}">
 (function () {
 	try {
 		var t = localStorage.getItem("edav-theme");
@@ -14,8 +14,8 @@
 </script>
 <link rel="stylesheet" href="/admin/static/style.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%235b57d1'/><text x='16' y='23' font-family='system-ui' font-size='19' font-weight='700' fill='white' text-anchor='middle'>e</text></svg>">
-<script src="/admin/static/htmx.min.js" defer></script>
-<script src="/admin/static/app.js" defer></script>
+<script src="/admin/static/htmx.min.js" defer nonce="{{.Nonce}}"></script>
+<script src="/admin/static/app.js" defer nonce="{{.Nonce}}"></script>
 </head>
 <body>
 {{if .User}}

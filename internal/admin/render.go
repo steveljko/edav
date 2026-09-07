@@ -93,6 +93,7 @@ type pageData struct {
 	Nav       string
 	CSRFToken string
 	User      *storage.User
+	Nonce     string
 	Error     string
 	Message   string
 	Form      formValues
@@ -135,6 +136,7 @@ type pageData struct {
 func (s *Server) page(r *http.Request, title, nav string, data pageData) pageData {
 	data.Title = title
 	data.Nav = nav
+	data.Nonce = nonceFrom(r.Context())
 
 	if u, ok := auth.UserFrom(r.Context()); ok {
 		data.User = u
