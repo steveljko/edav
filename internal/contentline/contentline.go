@@ -8,6 +8,7 @@
 package contentline
 
 import (
+	"sort"
 	"strings"
 )
 
@@ -127,10 +128,11 @@ func (d *Document) Components(name string) []Span {
 		}
 	}
 
-	// Components closes innermost first; callers expect document order.
-	for i, j := 0, len(spans)-1; i < j; i, j = i+1, j-1 {
-		spans[i], spans[j] = spans[j], spans[i]
-	}
+	// A component is recorded when its END is seen, so the list comes out in
+	// closing order: innermost before its parent, and for siblings the second
+	// before the first only when nested. Sorting by where each one opens gives
+	// document order in every case, which is what "the first VEVENT" means.
+	sort.Slice(spans, func(i, j int) bool { return spans[i].Begin < spans[j].Begin })
 	return spans
 }
 
