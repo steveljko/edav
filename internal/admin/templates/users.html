@@ -2,40 +2,30 @@
 <div class="page-head">
 	<div>
 		<h1>Users</h1>
-		<p class="subtitle">Accounts that can sign in to a calendar or contacts client.</p>
 	</div>
-	<a class="button primary" href="#add-user">{{template "icon-plus" .}} Add user</a>
+	<a class="button primary" href="#add-user">{{template "icon-plus" .}} New user</a>
 </div>
 
 <div class="stats">
-	<div class="stat"><div class="value">{{len .Users}}</div><div class="label">Users</div></div>
+	<div class="stat"><div class="value">{{.MatchCount}}</div><div class="label">Users</div></div>
 	<div class="stat"><div class="value">{{.CalendarCount}}</div><div class="label">Calendars</div></div>
 	<div class="stat"><div class="value">{{.AddressBookCount}}</div><div class="label">Address books</div></div>
 </div>
 
-<div class="card">
-	<div class="list">
-	{{range .Users}}
-		<a class="row-item" href="/admin/users/{{.User.ID}}">
-			<span class="avatar">{{initials .User.Username}}</span>
-			<span class="row-main">
-				<span class="row-title">{{if .User.DisplayName}}{{.User.DisplayName}}{{else}}{{.User.Username}}{{end}}</span>
-				<span class="row-sub">
-					{{.User.Username}}{{if .User.Email}} · {{.User.Email}}{{end}} ·
-					{{.Calendars}} calendar{{if ne .Calendars 1}}s{{end}},
-					{{.AddressBooks}} address book{{if ne .AddressBooks 1}}s{{end}}
-				</span>
-			</span>
-			{{if .User.IsAdmin}}<span class="badge accent">admin</span>{{end}}
-		</a>
-	{{else}}
-		<div class="empty">
-			<div class="headline">No users yet</div>
-			<p>Add one below, then give it the server address from Client setup.</p>
-		</div>
-	{{end}}
-	</div>
+{{if or .Users .Query}}
+<div class="toolbar">
+	<form method="get" action="/admin/" class="search"
+	      hx-get="/admin/" hx-trigger="input changed delay:250ms from:find input, search from:find input"
+	      hx-target="#user-results" hx-push-url="true">
+		{{template "icon-search" .}}
+		<label for="user-filter" class="visually-hidden">Search users</label>
+		<input type="search" id="user-filter" name="q" value="{{.Query}}" placeholder="Search users" autocomplete="off">
+		<button type="submit" class="no-js-only small">Search</button>
+	</form>
 </div>
+{{end}}
+
+<div id="user-results">{{template "user-results" .}}</div>
 
 <h2 id="add-user">Add a user</h2>
 <form method="post" action="/admin/users" class="card pad">
@@ -45,7 +35,6 @@
 			<label for="new-username">Username</label>
 			<input type="text" id="new-username" name="username" value="{{.Form.Username}}"
 			       autocapitalize="none" spellcheck="false" required>
-			<p class="hint">Appears in this account's URLs, so keep it simple.</p>
 		</div>
 		<div class="field">
 			<label for="new-display">Display name</label>
@@ -60,9 +49,52 @@
 		<div class="field">
 			<label for="new-password">Password</label>
 			<input type="password" id="new-password" name="password" autocomplete="new-password" required>
-			<p class="hint">At least 8 characters.</p>
 		</div>
 	</div>
 	<div class="actions-bar"><button type="submit" class="primary">Create user</button></div>
 </form>
+{{end}}
+
+{{define "user-results"}}
+<div class="card table-card">
+	<table class="data">
+		<thead>
+			<tr>
+				<th>User</th>
+				<th>Email</th>
+				<th>Collections</th>
+				<th><span class="visually-hidden">Actions</span></th>
+			</tr>
+		</thead>
+		<tbody>
+		{{range .Users}}
+			<tr>
+				<td class="subject">
+					<a href="/admin/users/{{.User.ID}}">
+						<span class="avatar">{{initials .User.Username}}</span>
+						<span class="name">{{if .User.DisplayName}}{{.User.DisplayName}}{{else}}{{.User.Username}}{{end}}</span>
+						{{if .User.IsAdmin}}<span class="badge">admin</span>{{end}}
+					</a>
+				</td>
+				<td class="meta"><span>{{if .User.Email}}{{.User.Email}}{{else}}<span class="placeholder">—</span>{{end}}</span></td>
+				<td class="meta"><span>{{.Calendars}} cal · {{.AddressBooks}} ab</span></td>
+				<td class="trailing"><a class="button small" href="/admin/users/{{.User.ID}}">Edit</a></td>
+			</tr>
+		{{else}}
+			<tr><td colspan="4">
+				<div class="empty">
+					{{if .Query}}
+					<div class="headline">Nothing matches “{{.Query}}”</div>
+					<p><a href="/admin/">Show everything</a></p>
+					{{else}}
+					<div class="headline">No users</div>
+					{{end}}
+				</div>
+			</td></tr>
+		{{end}}
+		</tbody>
+	</table>
+</div>
+
+{{template "pager" .}}
 {{end}}

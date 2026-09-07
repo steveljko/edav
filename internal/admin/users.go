@@ -13,19 +13,40 @@ import (
 
 const minPasswordLen = 8
 
+// usersPerPage is what one page of the user list shows.
+const usersPerPage = 100
+
 func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 	data, err := s.usersPage(r, pageData{})
 	if err != nil {
 		s.fail(w, r, "list users", err)
 		return
 	}
+
+	if r.Header.Get("HX-Request") == "true" {
+		s.renderFragment(w, r, "users.html", "user-results", data)
+		return
+	}
 	s.render(w, r, "users.html", data)
 }
 
 func (s *Server) usersPage(r *http.Request, data pageData) (pageData, error) {
-	users, err := storage.ListUsers(r.Context(), s.DB)
+	data.Query = strings.TrimSpace(r.URL.Query().Get("q"))
+	data.Page = max(atoiOr(r.URL.Query().Get("page"), 1), 1)
+
+	users, total, err := storage.SearchUsers(r.Context(), s.DB, data.Query,
+		usersPerPage, (data.Page-1)*usersPerPage)
 	if err != nil {
 		return data, err
+	}
+
+	data.MatchCount = total
+	data.Pages = (total + usersPerPage - 1) / usersPerPage
+	if data.Page > 1 {
+		data.PrevPage = data.Page - 1
+	}
+	if data.Page < data.Pages {
+		data.NextPage = data.Page + 1
 	}
 
 	rows := make([]userRow, 0, len(users))

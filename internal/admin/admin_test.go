@@ -2,6 +2,7 @@ package admin
 
 import (
 	"database/sql"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -725,5 +726,65 @@ func TestLoginThrottleClearsOnSuccess(t *testing.T) {
 		}); resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("attempt %d after a success = %d, want 401", i+1, resp.StatusCode)
 		}
+	}
+}
+
+// The user list is a table like the others, and a long one has to page.
+func TestUserListPaginates(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+
+	for i := range usersPerPage + 15 {
+		if _, err := storage.CreateUser(t.Context(), h.db, &storage.User{
+			Username:     fmt.Sprintf("user%03d", i),
+			PasswordHash: "unused",
+		}); err != nil {
+			t.Fatalf("CreateUser() = %v", err)
+		}
+	}
+
+	first := body(t, h.get(basePath))
+	if n := strings.Count(first, `<td class="subject">`); n != usersPerPage {
+		t.Errorf("first page rendered %d rows, want %d", n, usersPerPage)
+	}
+	if !strings.Contains(first, "Page 1 of 2") {
+		t.Error("no pager on an over-long user list")
+	}
+
+	// The admin account is in there too, so the tail is one longer.
+	second := body(t, h.get(basePath+"?page=2"))
+	if n := strings.Count(second, `<td class="subject">`); n != 16 {
+		t.Errorf("second page rendered %d rows, want 16", n)
+	}
+}
+
+// Searching users must reach past the page in view.
+func TestUserSearchIsServerSide(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+
+	for i := range usersPerPage + 5 {
+		if _, err := storage.CreateUser(t.Context(), h.db, &storage.User{
+			Username:     fmt.Sprintf("user%03d", i),
+			Email:        fmt.Sprintf("user%03d@example.com", i),
+			PasswordHash: "unused",
+		}); err != nil {
+			t.Fatalf("CreateUser() = %v", err)
+		}
+	}
+
+	// A name that only exists on the last page.
+	found := body(t, h.get(basePath+"?q=user104"))
+	if !strings.Contains(found, "user104") {
+		t.Error("search missed a user beyond the first page")
+	}
+	if strings.Contains(found, "user003") {
+		t.Error("search returned users it should have filtered out")
+	}
+
+	// The address is searchable as well as the name.
+	byEmail := body(t, h.get(basePath+"?q=user007@example.com"))
+	if !strings.Contains(byEmail, "user007") {
+		t.Error("search did not match on email")
 	}
 }

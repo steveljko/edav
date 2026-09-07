@@ -103,6 +103,48 @@ func ListUsers(ctx context.Context, db *sql.DB) ([]*User, error) {
 	return users, rows.Err()
 }
 
+// SearchUsers returns one page of users, optionally narrowed by name, and how
+// many match in total.
+func SearchUsers(ctx context.Context, db *sql.DB, query string, limit, offset int) ([]*User, int, error) {
+	where := ""
+	var args []any
+
+	if query = strings.TrimSpace(query); query != "" {
+		pattern := "%" + escapeLike(query) + "%"
+		where = `WHERE username LIKE ? ESCAPE '\' OR display_name LIKE ? ESCAPE '\'
+			OR email LIKE ? ESCAPE '\'`
+		args = append(args, pattern, pattern, pattern)
+	}
+
+	var total int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM users `+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count users: %w", err)
+	}
+
+	if limit <= 0 {
+		limit = 100
+	}
+
+	rows, err := db.QueryContext(ctx,
+		`SELECT `+userColumns+` FROM users `+where+
+			` ORDER BY username COLLATE NOCASE LIMIT ? OFFSET ?`,
+		append(args, limit, max(offset, 0))...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("search users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []*User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, 0, fmt.Errorf("search users: %w", err)
+		}
+		users = append(users, u)
+	}
+	return users, total, rows.Err()
+}
+
 func UpdateUser(ctx context.Context, db *sql.DB, u *User) error {
 	res, err := db.ExecContext(ctx,
 		`UPDATE users SET username = ?, display_name = ?, email = ?, is_admin = ?, updated_at = ?
