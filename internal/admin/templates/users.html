@@ -3,7 +3,7 @@
 	<div>
 		<h1>Users</h1>
 	</div>
-	<a class="button primary" href="#add-user">{{template "icon-plus" .}} New user</a>
+	<button type="button" class="button primary js-only" data-dialog="new-user">{{template "icon-plus" .}} New user</button>
 </div>
 
 <div class="stats">
@@ -27,32 +27,41 @@
 
 <div id="user-results">{{template "user-results" .}}</div>
 
-<h2 id="add-user">Add a user</h2>
-<form method="post" action="/admin/users" class="card pad">
-	<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-	<div class="row">
-		<div class="field">
-			<label for="new-username">Username</label>
-			<input type="text" id="new-username" name="username" value="{{.Form.Username}}"
-			       autocapitalize="none" spellcheck="false" required>
+<dialog class="modal modal-form" id="new-user" aria-labelledby="new-user-title"{{if .FormError}} data-open{{end}}>
+	<form method="post" action="/admin/users">
+		<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+		<div class="modal-body">
+			<h2 id="new-user-title">New user</h2>
+			{{if .FormError}}<p class="notice error">{{template "icon-alert" .}}<span>{{.FormError}}</span></p>{{end}}
+			<div class="row">
+				<div class="field">
+					<label for="new-username">Username</label>
+					<input type="text" id="new-username" name="username" value="{{.Form.Username}}"
+					       autocapitalize="none" spellcheck="false" required>
+				</div>
+				<div class="field">
+					<label for="new-display">Display name</label>
+					<input type="text" id="new-display" name="display_name" value="{{.Form.DisplayName}}">
+				</div>
+			</div>
+			<div class="row">
+				<div class="field">
+					<label for="new-email">Email</label>
+					<input type="email" id="new-email" name="email" value="{{.Form.Email}}">
+				</div>
+				<div class="field">
+					<label for="new-password">Password</label>
+					<input type="password" id="new-password" name="password" autocomplete="new-password" required>
+				</div>
+			</div>
 		</div>
-		<div class="field">
-			<label for="new-display">Display name</label>
-			<input type="text" id="new-display" name="display_name" value="{{.Form.DisplayName}}">
+		<div class="modal-actions">
+			<button type="button" class="ghost js-only" data-dialog-close>Cancel</button>
+			<button type="submit" class="primary">Create user</button>
 		</div>
-	</div>
-	<div class="row">
-		<div class="field">
-			<label for="new-email">Email</label>
-			<input type="email" id="new-email" name="email" value="{{.Form.Email}}">
-		</div>
-		<div class="field">
-			<label for="new-password">Password</label>
-			<input type="password" id="new-password" name="password" autocomplete="new-password" required>
-		</div>
-	</div>
-	<div class="actions-bar"><button type="submit" class="primary">Create user</button></div>
-</form>
+	</form>
+</dialog>
+
 {{end}}
 
 {{define "user-results"}}

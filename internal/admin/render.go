@@ -111,6 +111,7 @@ type pageData struct {
 	User      *storage.User
 	Nonce     string
 	Error     string
+	FormError string
 	Message   string
 	Form      formValues
 

@@ -86,7 +86,7 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, r, "list users", err)
 			return
 		}
-		data.Error = message
+		data.FormError = message
 		s.renderStatus(w, r, http.StatusUnprocessableEntity, "users.html", data)
 	}
 

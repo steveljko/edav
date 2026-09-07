@@ -95,6 +95,39 @@
 		});
 	}
 
+	// Forms that would otherwise sit at the bottom of a page open in a dialog
+	// instead. Without scripting the dialog is styled as an ordinary section,
+	// so the form is still reachable.
+	document.addEventListener("click", function (event) {
+		var open = event.target.closest("[data-dialog]");
+		if (open) {
+			var target = document.getElementById(open.getAttribute("data-dialog"));
+			if (target && typeof target.showModal === "function") {
+				event.preventDefault();
+				target.showModal();
+				var first = target.querySelector("input:not([type=hidden])");
+				if (first) first.focus();
+			}
+			return;
+		}
+		if (event.target.closest("[data-dialog-close]")) {
+			var owner = event.target.closest("dialog");
+			if (owner) owner.close("cancel");
+		}
+	});
+
+	// A form the server rejected comes back with the dialog marked open, so the
+	// message lands where the fields are rather than behind the backdrop.
+	document.querySelectorAll("dialog[data-open]").forEach(function (d) {
+		if (typeof d.showModal === "function") d.showModal();
+	});
+
+	document.querySelectorAll("dialog.modal-form").forEach(function (d) {
+		d.addEventListener("click", function (event) {
+			if (event.target === d) d.close("cancel");
+		});
+	});
+
 	// Derive a URL slug from a name as it is typed, and stop as soon as the
 	// slug is edited by hand. The server derives the same slug when the field
 	// is left empty, so this only shows what is about to happen.

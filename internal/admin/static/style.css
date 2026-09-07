@@ -850,6 +850,21 @@ dialog.modal[open] { animation: modal-in 0.16s var(--ease); }
 	padding: var(--s3) var(--s5) var(--s5);
 }
 
+/* A dialog that carries a form rather than a question needs the room a form
+   takes, and has to stay reachable when the dialog cannot be opened. */
+dialog.modal-form { max-width: 34rem; }
+dialog.modal-form .modal-body h2 { margin-bottom: var(--s4); }
+dialog.modal-form .notice { margin-bottom: var(--s4); }
+dialog.modal-form .field:last-child { margin-bottom: 0; }
+
+html:not(.has-js) dialog.modal-form {
+	display: block;
+	position: static;
+	width: auto;
+	max-width: none;
+	margin: var(--s5) 0 0;
+}
+
 /* Login ------------------------------------------------------------------ */
 
 .auth { min-height: 100vh; display: grid; place-items: center; padding: var(--s6) var(--s4); }
