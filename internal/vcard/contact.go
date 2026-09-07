@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/steveljko/edav/internal/contentline"
 )
 
 // Contact is the part of a vCard the admin interface edits. Everything else in
@@ -38,7 +40,7 @@ func ReadContact(raw []byte) (*Contact, error) {
 	c := &Contact{
 		UID:           v.Value("UID"),
 		FormattedName: v.Value("FN"),
-		Organisation:  firstField(rawValue(v, "ORG")),
+		Organisation:  firstField(v.doc.RawValue(v.span, "ORG")),
 		Title:         v.Value("TITLE"),
 		Note:          v.Value("NOTE"),
 		Phones:        v.Values("TEL"),
@@ -49,8 +51,8 @@ func ReadContact(raw []byte) (*Contact, error) {
 	// N is "family;given;additional;prefix;suffix". It is split before being
 	// unescaped, or a name containing an escaped semicolon would be read as two
 	// fields.
-	if n := rawValue(v, "N"); n != "" {
-		parts := splitStructured(n)
+	if n := v.doc.RawValue(v.span, "N"); n != "" {
+		parts := contentline.SplitStructured(n)
 		if len(parts) > 0 {
 			c.FamilyName = parts[0]
 		}
@@ -84,7 +86,7 @@ func Apply(raw []byte, c *Contact, now time.Time) ([]byte, error) {
 
 	// ORG is structured too; only its first field is edited here, so the rest
 	// of an existing value is kept.
-	v.SetRaw("ORG", c.organisationValue(rawValue(v, "ORG")))
+	v.SetRaw("ORG", c.organisationValue(v.doc.RawValue(v.span, "ORG")))
 
 	v.Touch(now)
 	return v.Bytes(), nil
@@ -147,18 +149,7 @@ func (c *Contact) structuredName() string {
 	if c.FamilyName == "" && c.GivenName == "" {
 		return ""
 	}
-	return escapeField(c.FamilyName) + ";" + escapeField(c.GivenName) + ";;;"
-}
-
-// rawValue reads a value without unescaping it, for structured properties
-// whose components are split separately.
-func rawValue(v *Card, name string) string {
-	for _, l := range v.c.lines {
-		if l.name == strings.ToUpper(name) {
-			return l.value
-		}
-	}
-	return ""
+	return contentline.EscapeComponent(c.FamilyName) + ";" + contentline.EscapeComponent(c.GivenName) + ";;;"
 }
 
 // organisationValue keeps any department fields an existing ORG carried.
@@ -167,11 +158,11 @@ func (c *Contact) organisationValue(existing string) string {
 		return ""
 	}
 
-	rest := splitStructured(existing)
-	value := escapeField(c.Organisation)
+	rest := contentline.SplitStructured(existing)
+	value := contentline.EscapeComponent(c.Organisation)
 	if len(rest) > 1 {
 		for _, part := range rest[1:] {
-			value += ";" + escapeField(part)
+			value += ";" + contentline.EscapeComponent(part)
 		}
 	}
 	return value
@@ -195,44 +186,6 @@ func nonEmpty(props []Property) []Property {
 	return out
 }
 
-// splitStructured breaks a structured value on unescaped semicolons.
-func splitStructured(s string) []string {
-	var parts []string
-	var b strings.Builder
-
-	for i := 0; i < len(s); i++ {
-		switch {
-		case s[i] == '\\' && i+1 < len(s):
-			i++
-			switch s[i] {
-			case 'n', 'N':
-				b.WriteByte('\n')
-			default:
-				b.WriteByte(s[i])
-			}
-		case s[i] == ';':
-			parts = append(parts, b.String())
-			b.Reset()
-		default:
-			b.WriteByte(s[i])
-		}
-	}
-	parts = append(parts, b.String())
-	return parts
-}
-
 func firstField(s string) string {
-	return splitStructured(s)[0]
-}
-
-// escapeField escapes a component of a structured value, where the semicolon
-// separating components must survive but one inside a component must not.
-func escapeField(s string) string {
-	return strings.NewReplacer(
-		"\\", "\\\\",
-		";", "\\;",
-		",", "\\,",
-		"\n", "\\n",
-		"\r", "",
-	).Replace(s)
+	return contentline.SplitStructured(s)[0]
 }
