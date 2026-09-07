@@ -5,6 +5,8 @@ bin
 *.db-shm
 *.db-wal
 .env
+*.env
+!*.env.example
 .DS_Store
 Dockerfile
 docker-compose.yml

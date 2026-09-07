@@ -108,6 +108,11 @@ size, duration, claimed user and client agent. That is the first thing to reach
 for when a client will not connect; at the default level only server errors are
 logged, so ordinary polling does not fill a disk.
 
+Eight failed sign-ins for one account name within fifteen minutes stop that
+name being tried again until the window passes, including with the right
+password. A client left holding a stale password will lock its own account out
+for that long; fix the password on the client, and it clears itself.
+
 `GET /healthz` returns 200 once the database is reachable. The binary can probe
 it for you with `dav -healthcheck`, which is what the container's `HEALTHCHECK`
 runs, since a `scratch` image has no shell.
