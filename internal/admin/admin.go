@@ -5,11 +5,13 @@ package admin
 import (
 	"database/sql"
 	"embed"
+	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/steveljko/edav/internal/auth"
 	"github.com/steveljko/edav/internal/storage"
@@ -36,6 +38,7 @@ type Server struct {
 	CardDAVEnabled bool
 
 	templates map[string]*template.Template
+	logins    *auth.LoginThrottle
 }
 
 const (
@@ -49,6 +52,7 @@ func (s *Server) Register(mux *http.ServeMux) error {
 	if err := s.parseTemplates(); err != nil {
 		return err
 	}
+	s.logins = auth.NewLoginThrottle()
 
 	mux.Handle("GET /admin/static/", http.StripPrefix("/admin/", http.FileServerFS(staticFS)))
 
@@ -112,11 +116,22 @@ func (s *Server) doLogin(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.PostFormValue("username"))
 	password := r.PostFormValue("password")
 
+	now := time.Now()
+	if retry, ok := s.logins.Allow(username, now); !ok {
+		slog.Warn("admin login throttled", "username", username, "remote", r.RemoteAddr)
+		data := s.page(r, "Sign in", "", pageData{Form: formValues{Username: username}})
+		data.Error = fmt.Sprintf("Too many attempts. Try again in %s.", humaniseWait(retry))
+		w.Header().Set("Retry-After", strconv.Itoa(max(int(retry.Seconds()), 1)))
+		s.renderStatus(w, r, http.StatusTooManyRequests, "login.html", data)
+		return
+	}
+
 	// The login form itself cannot carry a session CSRF token, since there is
 	// no session yet. SameSite=Lax on the session cookie is what stops a
 	// cross-site login here.
 	u, err := auth.Authenticate(r.Context(), s.DB, username, password)
 	if err != nil {
+		s.logins.Fail(username, now)
 		slog.Info("admin login rejected", "username", username, "remote", r.RemoteAddr)
 		data := s.page(r, "Sign in", "", pageData{Form: formValues{Username: username}})
 		data.Error = "Incorrect username or password."
@@ -132,6 +147,8 @@ func (s *Server) doLogin(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "login.html", data)
 		return
 	}
+
+	s.logins.Succeed(username)
 
 	if _, err := s.Sessions.Create(r.Context(), w, u.ID); err != nil {
 		s.fail(w, r, "create session", err)
@@ -163,6 +180,18 @@ func (s *Server) redirect(w http.ResponseWriter, r *http.Request, path string) {
 func (s *Server) fail(w http.ResponseWriter, r *http.Request, what string, err error) {
 	slog.Error("admin request failed", "what", what, "path", r.URL.Path, "error", err)
 	http.Error(w, "something went wrong", http.StatusInternalServerError)
+}
+
+// humaniseWait rounds a delay to something worth reading on a form.
+func humaniseWait(d time.Duration) string {
+	if d < time.Minute {
+		return "less than a minute"
+	}
+	minutes := int(d.Round(time.Minute).Minutes())
+	if minutes == 1 {
+		return "a minute"
+	}
+	return strconv.Itoa(minutes) + " minutes"
 }
 
 func pathID(r *http.Request) (int64, bool) {

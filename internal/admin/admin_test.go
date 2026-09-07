@@ -662,3 +662,68 @@ func (h *harness) createUser(username string) *storage.User {
 func itoa(id int64) string {
 	return strconv.FormatInt(id, 10)
 }
+
+// Guessing at the sign-in form is limited the same way as at the DAV
+// endpoint, or the admin account is the softer of the two targets.
+func TestLoginThrottlesRepeatedFailures(t *testing.T) {
+	h := newHarness(t)
+
+	var lastStatus int
+	for i := range 12 {
+		resp := h.post("/admin/login", url.Values{
+			"username": {"admin"}, "password": {"wrong"},
+		})
+		lastStatus = resp.StatusCode
+		if lastStatus == http.StatusTooManyRequests {
+			if i < 4 {
+				t.Fatalf("throttled after only %d attempts", i+1)
+			}
+			break
+		}
+		if lastStatus != http.StatusUnauthorized {
+			t.Fatalf("attempt %d = %d, want 401", i+1, lastStatus)
+		}
+	}
+
+	if lastStatus != http.StatusTooManyRequests {
+		t.Fatal("repeated failures were never throttled")
+	}
+
+	resp := h.post("/admin/login", url.Values{"username": {"admin"}, "password": {adminPassword}})
+	if resp.StatusCode != http.StatusTooManyRequests {
+		t.Errorf("the correct password during a throttle = %d, want 429", resp.StatusCode)
+	}
+	if got := body(t, resp); !strings.Contains(got, "Too many attempts") {
+		t.Errorf("the page does not explain the wait:\n%s", got)
+	}
+	if resp.Header.Get("Retry-After") == "" {
+		t.Error("no Retry-After header")
+	}
+}
+
+// A typo before a correct password must not count against the next session.
+func TestLoginThrottleClearsOnSuccess(t *testing.T) {
+	h := newHarness(t)
+
+	for range 3 {
+		if resp := h.post("/admin/login", url.Values{
+			"username": {"admin"}, "password": {"wrong"},
+		}); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want 401", resp.StatusCode)
+		}
+	}
+
+	if resp := h.post("/admin/login", url.Values{
+		"username": {"admin"}, "password": {adminPassword},
+	}); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("sign in = %d, want 303", resp.StatusCode)
+	}
+
+	for i := range 3 {
+		if resp := h.post("/admin/login", url.Values{
+			"username": {"admin"}, "password": {"wrong"},
+		}); resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("attempt %d after a success = %d, want 401", i+1, resp.StatusCode)
+		}
+	}
+}
