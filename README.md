@@ -79,6 +79,19 @@ logged, so ordinary polling does not fill a disk.
 it for you with `dav -healthcheck`, which is what the container's `HEALTHCHECK`
 runs, since a `scratch` image has no shell.
 
+## Scale
+
+Idle memory is about 40MB and does not grow with the database. A request that
+returns a whole collection builds its response in memory first, so peak memory
+tracks concurrent requests multiplied by collection size rather than a fixed
+figure. A full synchronisation only happens on first setup or after a sync
+token is rejected; steady-state syncs return just what changed.
+
+For a household, 128MB is comfortable and 256MB has headroom. Argon2id
+verifications are capped at four at once, which bounds what a burst of wrong
+credentials can allocate, and verified credentials are cached for five minutes
+so a client resending them on every request of a sync does not pay for each one.
+
 ## Administration
 
 Open `/admin` and sign in with `EDAV_ADMIN_USERNAME` and `EDAV_ADMIN_PASSWORD`.
