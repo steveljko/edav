@@ -72,6 +72,9 @@ type Calendar struct {
 	// SyncToken is the collection's current position in its own change
 	// sequence, reported so a client can start syncing from now.
 	SyncToken string
+	// Timezone is a VCALENDAR carrying one VTIMEZONE, which a client applies
+	// to floating times in this calendar. Empty when the calendar has none.
+	Timezone string
 }
 
 // SyncQuery is a sync-collection request.

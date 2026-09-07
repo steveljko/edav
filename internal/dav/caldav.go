@@ -117,6 +117,7 @@ func (b *CalDAVBackend) CreateCalendar(ctx context.Context, cal *caldav.Calendar
 		URI:         res.Collection,
 		DisplayName: cal.Name,
 		Description: cal.Description,
+		Timezone:    cal.Timezone,
 	})
 	if errors.Is(err, storage.ErrConflict) {
 		return internal.HTTPErrorf(http.StatusMethodNotAllowed, "caldav: %q already exists", cal.Path)
@@ -352,6 +353,7 @@ func (b *CalDAVBackend) calendar(username string, c *storage.Collection) caldav.
 		Description:     c.Description,
 		MaxResourceSize: caldav.MaxResourceSize,
 		SyncToken:       encodeSyncToken(c.SyncSeq),
+		Timezone:        c.Timezone,
 		SupportedComponentSet: []string{
 			ical.CompEvent, ical.CompToDo,
 		},

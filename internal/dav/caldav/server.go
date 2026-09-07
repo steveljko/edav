@@ -652,6 +652,10 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 		props[internal.SyncTokenName] = internal.PropFindValue(&internal.SyncToken{Token: cal.SyncToken})
 	}
 
+	if cal.Timezone != "" {
+		props[calendarTimezoneName] = internal.PropFindValue(&calendarTimezone{Calendar: cal.Timezone})
+	}
+
 	if cal.Name != "" {
 		props[internal.DisplayNameName] = internal.PropFindValue(&internal.DisplayName{
 			Name: cal.Name,
@@ -668,7 +672,7 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 		})
 	}
 
-	// TODO: CALDAV:calendar-timezone, CALDAV:supported-calendar-component-set, CALDAV:min-date-time, CALDAV:max-date-time, CALDAV:max-instances, CALDAV:max-attendees-per-instance
+	// TODO: CALDAV:supported-calendar-component-set, CALDAV:min-date-time, CALDAV:max-date-time, CALDAV:max-instances, CALDAV:max-attendees-per-instance
 
 	return internal.NewPropFindResponse(cal.Path, propfind, props)
 }

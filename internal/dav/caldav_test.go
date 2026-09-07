@@ -453,3 +453,57 @@ func TestCalendarQueryWithEmbeddedTimezone(t *testing.T) {
 		})
 	}
 }
+
+// A calendar's default timezone is what a client applies to a floating time.
+// It was stored and editable but never served, so clients fell back to their
+// own guess.
+func TestCalendarTimezoneIsServed(t *testing.T) {
+	h := newHarness(t)
+	c := h.calendar("work")
+
+	const tz = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//edav//EN\r\n" +
+		"BEGIN:VTIMEZONE\r\nTZID:Europe/Berlin\r\nEND:VTIMEZONE\r\nEND:VCALENDAR\r\n"
+
+	c.Timezone = tz
+	if err := storage.UpdateCollection(t.Context(), h.db, c); err != nil {
+		t.Fatalf("UpdateCollection() = %v", err)
+	}
+
+	const propfind = `<?xml version="1.0" encoding="UTF-8"?>
+<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop><C:calendar-timezone/></D:prop>
+</D:propfind>`
+
+	resp := h.do("PROPFIND", "/dav/calendars/alice/work/", propfind,
+		map[string]string{"Content-Type": "application/xml", "Depth": "0"})
+	if resp.StatusCode != http.StatusMultiStatus {
+		t.Fatalf("status = %d, want 207", resp.StatusCode)
+	}
+
+	got := body(t, resp)
+	if !strings.Contains(got, "calendar-timezone") {
+		t.Errorf("the property was not returned:\n%s", got)
+	}
+	if !strings.Contains(got, "TZID:Europe/Berlin") {
+		t.Errorf("the timezone body was not returned:\n%s", got)
+	}
+}
+
+// A calendar without one must not claim an empty timezone.
+func TestCalendarWithoutTimezoneOmitsTheProperty(t *testing.T) {
+	h := newHarness(t)
+	h.calendar("work")
+
+	const propfind = `<?xml version="1.0" encoding="UTF-8"?>
+<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop><C:calendar-timezone/></D:prop>
+</D:propfind>`
+
+	resp := h.do("PROPFIND", "/dav/calendars/alice/work/", propfind,
+		map[string]string{"Content-Type": "application/xml", "Depth": "0"})
+
+	got := body(t, resp)
+	if !strings.Contains(got, "404") {
+		t.Errorf("an absent timezone was not reported as not found:\n%s", got)
+	}
+}

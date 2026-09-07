@@ -30,6 +30,7 @@ var (
 	calendarHomeSetName = xml.Name{Space: namespace, Local: "calendar-home-set"}
 
 	calendarDescriptionName           = xml.Name{Space: namespace, Local: "calendar-description"}
+	calendarTimezoneName              = xml.Name{Space: namespace, Local: "calendar-timezone"}
 	supportedCalendarDataName         = xml.Name{Space: namespace, Local: "supported-calendar-data"}
 	supportedCalendarComponentSetName = xml.Name{Space: namespace, Local: "supported-calendar-component-set"}
 	maxResourceSizeName               = xml.Name{Space: namespace, Local: "max-resource-size"}
@@ -52,6 +53,15 @@ func (a *calendarHomeSet) GetXMLName() xml.Name {
 }
 
 // https://tools.ietf.org/html/rfc4791#section-5.2.1
+// https://tools.ietf.org/html/rfc4791#section-5.2.2
+//
+// The value is a whole VCALENDAR carrying one VTIMEZONE, not a zone name, and
+// it tells a client which zone to use for a floating time.
+type calendarTimezone struct {
+	XMLName  xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-timezone"`
+	Calendar string   `xml:",cdata"`
+}
+
 type calendarDescription struct {
 	XMLName     xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-description"`
 	Description string   `xml:",chardata"`
