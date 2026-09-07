@@ -151,3 +151,111 @@ func TestPagesCarryDarkModeAndResponsiveRules(t *testing.T) {
 		}
 	}
 }
+
+// The theme has to work three ways: following the system, and forced either
+// direction. An explicit choice must win over the system preference, which
+// needs the dark tokens declared under both selectors.
+func TestThemeCoversSystemAndExplicitChoice(t *testing.T) {
+	h := newHarness(t)
+
+	css := body(t, h.get("/admin/static/style.css"))
+	for _, want := range []string{
+		`:root[data-theme="light"]`,
+		`:root:not([data-theme="light"])`,
+		`:root[data-theme="dark"]`,
+		"prefers-color-scheme: dark",
+		"color-scheme: dark",
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("stylesheet is missing %q", want)
+		}
+	}
+}
+
+// Colours come from tokens so a theme is one block to change, not a hunt
+// through the rules.
+func TestStylesheetKeepsColoursInTokens(t *testing.T) {
+	h := newHarness(t)
+	css := body(t, h.get("/admin/static/style.css"))
+
+	_, rules, ok := strings.Cut(css, "/* Base ---")
+	if !ok {
+		t.Fatal("cannot find where the token blocks end")
+	}
+	if strings.ContainsAny(rules, "#") {
+		for _, line := range strings.Split(rules, "\n") {
+			if i := strings.Index(line, "#"); i >= 0 && len(line) > i+3 {
+				if isHexColour(line[i:]) {
+					t.Errorf("hardcoded colour outside the token blocks: %s", strings.TrimSpace(line))
+				}
+			}
+		}
+	}
+}
+
+func isHexColour(s string) bool {
+	if len(s) < 4 || s[0] != '#' {
+		return false
+	}
+	for i := 1; i < len(s) && i <= 6; i++ {
+		c := s[i]
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
+			return i >= 4
+		}
+	}
+	return true
+}
+
+func TestThemeControlIsOfferedAndDefaultsToSystem(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+
+	got := body(t, h.get("/admin/"))
+	for _, want := range []string{
+		`data-theme-set="light"`,
+		`data-theme-set="system" aria-pressed="true"`,
+		`data-theme-set="dark"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("theme control is missing %q", want)
+		}
+	}
+
+	// The stored choice must be applied before the stylesheet loads, or every
+	// page load flashes the other theme first.
+	script := strings.Index(got, "edav-theme")
+	sheet := strings.Index(got, "style.css")
+	if script < 0 || sheet < 0 || script > sheet {
+		t.Error("the theme is not applied before the stylesheet loads")
+	}
+}
+
+// Ad-hoc spacing is what makes an interface feel loose; the templates use the
+// scale rather than reaching for inline styles.
+func TestPagesUseTheSpacingScaleNotInlineStyles(t *testing.T) {
+	h := newHarness(t)
+	h.login()
+	c := h.addressBook("contacts")
+	h.storeCard(c, "ada.vcf", phoneCard)
+
+	pages := []string{
+		"/admin/",
+		"/admin/users/" + itoa(h.admin.ID),
+		"/admin/collections/" + itoa(c.ID),
+		"/admin/collections/" + itoa(c.ID) + "/contacts/ada.vcf",
+		"/admin/setup",
+	}
+
+	for _, page := range pages {
+		t.Run(page, func(t *testing.T) {
+			got := body(t, h.get(page))
+			for _, line := range strings.Split(got, "\n") {
+				// A collection's colour is chosen by the user, so it is the one
+				// value that cannot come from a class.
+				if strings.Contains(line, `style="`) && !strings.Contains(line, "swatch") {
+					t.Errorf("inline style outside the swatch: %s", strings.TrimSpace(line))
+				}
+			}
+		})
+	}
+}
