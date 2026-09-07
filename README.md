@@ -163,7 +163,9 @@ Set `EDAV_BASE_URL` to the address clients actually reach. Behind a proxy the
 request arrives on an internal address, and without this the setup page will
 confidently show a URL nothing can connect to.
 
-## Attribution
+## License
+
+MIT, see `LICENSE`.
 
 `internal/dav` contains a fork of
 [go-webdav](https://github.com/emersion/go-webdav) by Simon Ser, MIT licensed;
