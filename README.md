@@ -70,6 +70,11 @@ at the first request.
 overwrite the password afterwards, so a password changed in the admin interface
 survives a restart.
 
+Set `EDAV_LOG_LEVEL=debug` to log every request with its method, path, status,
+size, duration, claimed user and client agent. That is the first thing to reach
+for when a client will not connect; at the default level only server errors are
+logged, so ordinary polling does not fill a disk.
+
 `GET /healthz` returns 200 once the database is reachable. The binary can probe
 it for you with `dav -healthcheck`, which is what the container's `HEALTHCHECK`
 runs, since a `scratch` image has no shell.

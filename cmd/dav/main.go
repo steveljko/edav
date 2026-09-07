@@ -80,7 +80,7 @@ func run(cfg *config.Config) error {
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           commonHeaders(handler),
+		Handler:           logRequests(commonHeaders(handler)),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -132,6 +132,71 @@ func healthcheck(addr string) error {
 		return fmt.Errorf("healthcheck: /healthz returned %s", resp.Status)
 	}
 	return nil
+}
+
+// recorder captures what a response turned out to be, so a request can be
+// logged after it is answered.
+type recorder struct {
+	http.ResponseWriter
+	status int
+	bytes  int64
+}
+
+func (r *recorder) WriteHeader(status int) {
+	r.status = status
+	r.ResponseWriter.WriteHeader(status)
+}
+
+func (r *recorder) Write(b []byte) (int, error) {
+	if r.status == 0 {
+		r.status = http.StatusOK
+	}
+	n, err := r.ResponseWriter.Write(b)
+	r.bytes += int64(n)
+	return n, err
+}
+
+func (r *recorder) Flush() {
+	if f, ok := r.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// logRequests records every request. Debugging a DAV client means knowing what
+// it actually asked for, which nothing else here reports; at the default level
+// only server errors are logged, so a household's polling does not fill a disk.
+//
+// The user name is the one the request claimed, not one that was verified: it
+// is recorded to make a log readable, not to attest to anything.
+func logRequests(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		rec := &recorder{ResponseWriter: w}
+
+		next.ServeHTTP(rec, r)
+
+		if rec.status == 0 {
+			rec.status = http.StatusOK
+		}
+		username, _, _ := r.BasicAuth()
+
+		attrs := []any{
+			"method", r.Method,
+			"path", r.URL.Path,
+			"status", rec.status,
+			"bytes", rec.bytes,
+			"duration", time.Since(start).Round(time.Millisecond),
+			"user", username,
+			"agent", r.UserAgent(),
+		}
+
+		switch {
+		case rec.status >= 500:
+			slog.Error("request failed", attrs...)
+		default:
+			slog.Debug("request", attrs...)
+		}
+	})
 }
 
 // commonHeaders applies what every response wants, DAV included. Anything
