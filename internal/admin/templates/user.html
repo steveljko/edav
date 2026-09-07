@@ -31,10 +31,7 @@
 			</span>
 		</a>
 	{{else}}
-		<div class="empty">
-			<div class="headline">No collections</div>
-			<p>Add one below, or let a client create its own on first sync.</p>
-		</div>
+		<div class="empty"><div class="headline">No collections</div></div>
 	{{end}}
 	</div>
 </div>
@@ -59,7 +56,6 @@
 			<label for="uri">URL slug</label>
 			<input type="text" id="uri" name="uri" value="{{.Form.URI}}" placeholder="from the name"
 			       autocapitalize="none" spellcheck="false" data-slug>
-			<p class="hint">Where it lives in a client's URL. Left blank, it follows the name.</p>
 		</div>
 	</div>
 	<div class="actions-bar"><button type="submit" class="primary">Create collection</button></div>
@@ -90,7 +86,7 @@
 				<option value="0"{{if not .Subject.IsAdmin}} selected{{end}}>No</option>
 				<option value="1"{{if .Subject.IsAdmin}} selected{{end}}>Yes</option>
 			</select>
-			{{if .IsSelf}}<p class="hint">You cannot remove your own access.</p>{{end}}
+
 		</div>
 	</div>
 	<div class="actions-bar"><button type="submit" class="primary">Save changes</button></div>
@@ -105,18 +101,15 @@
 			<input type="password" id="password" name="password" autocomplete="new-password" required>
 		</div>
 	</div>
-	<p class="hint">Signs this user out of the admin interface everywhere. Their clients will
-		ask for the new password on the next sync.</p>
+	<p class="hint">Signs this user out everywhere.</p>
 	<div class="actions-bar"><button type="submit">Set password</button></div>
 </form>
 
 <h2>Danger zone</h2>
 <div class="card pad">
 	{{if .IsSelf}}
-		<p class="muted flush">You cannot delete the account you are signed in as.</p>
+		<p class="muted flush">This is the account you are signed in as.</p>
 	{{else}}
-		<p class="muted zone-note">Deleting {{.Subject.Username}} removes every collection
-			and object they own. This cannot be undone.</p>
 		<form method="post" action="/admin/users/{{.Subject.ID}}/delete">
 			<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 			<button class="danger js-only" data-confirm="This removes {{.Subject.Username}}, every collection they own and every object in them. It cannot be undone."

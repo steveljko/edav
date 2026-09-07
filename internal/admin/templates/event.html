@@ -14,16 +14,9 @@
 	</div>
 </div>
 
-{{if .EventURI}}
-<p class="notice info">{{template "icon-check" .}}<span>Only the fields below are rewritten when you
-save. Reminders, guests and anything else this event carries are left exactly as they are.</span></p>
-{{end}}
-
 {{if .RepeatSummary}}
-<p class="notice info">{{template "icon-repeat" .}}<span><strong>{{.RepeatSummary}}.</strong>
-	The repeat itself is not editable here{{if .HasOverrides}}, and this event has occurrences that
-	were moved or changed individually{{end}} — change it in a calendar client, which can express
-	exceptions. Editing anything below leaves the repeat untouched.</span></p>
+<p class="notice info">{{template "icon-repeat" .}}<span>{{.RepeatSummary}}. Change the repeat in a
+	calendar client; editing here leaves it untouched.</span></p>
 {{end}}
 
 <form method="post" action="{{.EventAction}}">
@@ -72,7 +65,7 @@ save. Reminders, guests and anything else this event carries are left exactly as
 			<label for="timezone">Time zone</label>
 			<input type="text" id="timezone" name="timezone" value="{{.Event.Timezone}}"
 			       placeholder="Europe/Berlin" autocapitalize="none" spellcheck="false">
-			<p class="hint">An IANA name. Leave blank to store the times in UTC.</p>
+			<p class="hint">IANA name. Blank stores UTC.</p>
 		</div>
 	</div>
 
@@ -84,8 +77,6 @@ save. Reminders, guests and anything else this event carries are left exactly as
 			<select id="recurrence" name="recurrence">
 				{{range .Repeats}}<option value="{{.Value}}">{{.Label}}</option>{{end}}
 			</select>
-			<p class="hint">A calendar client can set up something more involved, with exceptions
-				and individually moved occurrences.</p>
 		</div>
 	</div>
 	{{else if .Event.Recurrence}}
@@ -96,7 +87,7 @@ save. Reminders, guests and anything else this event carries are left exactly as
 	<div class="card pad">
 		<div class="field">
 			<label for="description" class="visually-hidden">Notes</label>
-			<textarea id="description" name="description" placeholder="Anything else worth remembering">{{.Event.Description}}</textarea>
+			<textarea id="description" name="description">{{.Event.Description}}</textarea>
 		</div>
 	</div>
 

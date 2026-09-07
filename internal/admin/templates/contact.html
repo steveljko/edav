@@ -16,12 +16,6 @@
 	</div>
 </div>
 
-{{if .ContactURI}}
-<p class="notice info">{{template "icon-check" .}}<span>Only the fields below are rewritten when you
-save. Anything else this contact carries — a photo, custom labels, fields added by a phone —
-is left exactly as it is.</span></p>
-{{end}}
-
 <form method="post" action="{{.ContactAction}}">
 	<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 	{{if .Contact.UID}}<input type="hidden" name="uid" value="{{.Contact.UID}}">{{end}}
@@ -41,7 +35,7 @@ is left exactly as it is.</span></p>
 		<div class="field">
 			<label for="formatted_name">Display name</label>
 			<input type="text" id="formatted_name" name="formatted_name" value="{{.Contact.FormattedName}}"
-			       placeholder="Built from the names above if left blank">
+			      >
 		</div>
 		<div class="row">
 			<div class="field">
@@ -76,8 +70,7 @@ is left exactly as it is.</span></p>
 			</div>
 		{{end}}
 		</div>
-		<button type="button" class="small js-only" data-add-row="phone-rows">{{template "icon-plus" .}} Add number</button>
-		<p class="hint no-js-only">Clearing a value removes it. Save and reopen for another blank row.</p>
+		<button type="button" class="small js-only" data-add-row="phone-rows">{{template "icon-plus" .}} Add</button>
 	</div>
 
 	<h2>Email</h2>
@@ -101,8 +94,7 @@ is left exactly as it is.</span></p>
 			</div>
 		{{end}}
 		</div>
-		<button type="button" class="small js-only" data-add-row="email-rows">{{template "icon-plus" .}} Add address</button>
-		<p class="hint no-js-only">Clearing a value removes it. Save and reopen for another blank row.</p>
+		<button type="button" class="small js-only" data-add-row="email-rows">{{template "icon-plus" .}} Add</button>
 	</div>
 
 	<h2>Other</h2>

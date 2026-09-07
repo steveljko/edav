@@ -69,7 +69,7 @@ func TestContactListing(t *testing.T) {
 	h.storeCard(c, "ada.vcf", phoneCard)
 
 	got := body(t, h.get("/admin/collections/"+itoa(c.ID)))
-	for _, want := range []string{"Ada Lovelace", "ada.vcf", "Add a contact"} {
+	for _, want := range []string{"Ada Lovelace", "ada.vcf", "New contact"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("collection page does not show %q:\n%s", want, got)
 		}
@@ -90,7 +90,7 @@ func TestContactRoutesRejectCalendars(t *testing.T) {
 	if resp := h.get("/admin/collections/" + itoa(cal.ID) + "/contacts/new"); resp.StatusCode != http.StatusNotFound {
 		t.Errorf("status = %d, want 404", resp.StatusCode)
 	}
-	if got := body(t, h.get("/admin/collections/"+itoa(cal.ID))); strings.Contains(got, "Add a contact") {
+	if got := body(t, h.get("/admin/collections/"+itoa(cal.ID))); strings.Contains(got, "New contact") {
 		t.Error("a calendar page offers contact creation")
 	}
 }
@@ -461,7 +461,7 @@ func TestContactSearchWithNoMatchesExplainsItself(t *testing.T) {
 	if !strings.Contains(got, "Nothing matches") {
 		t.Errorf("an empty result does not explain itself:\n%s", got)
 	}
-	if !strings.Contains(got, "show everything") {
+	if !strings.Contains(got, "Show everything") {
 		t.Error("no way back to the unfiltered list")
 	}
 }

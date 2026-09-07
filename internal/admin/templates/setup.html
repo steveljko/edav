@@ -1,15 +1,11 @@
 {{define "content"}}
 <div class="page-head">
-	<div>
-		<h1>Client setup</h1>
-		<p class="subtitle">The exact addresses to paste into each client.</p>
-	</div>
+	<div><h1>Client setup</h1></div>
 </div>
 
 {{if .Insecure}}
-<p class="notice error">{{template "icon-alert" .}}<span>This server is reachable over plain HTTP.
-Basic authentication sends the password on every request, so put it behind TLS before using it
-over an untrusted network.</span></p>
+<p class="notice error">{{template "icon-alert" .}}<span>Reachable over plain HTTP. Basic
+authentication sends the password on every request; put it behind TLS.</span></p>
 {{end}}
 
 <h2>Server address</h2>
@@ -18,10 +14,7 @@ over an untrusted network.</span></p>
 		<code id="base-url">{{.BaseURL}}</code>
 		<button type="button" class="small js-only" data-copy="base-url">Copy</button>
 	</div>
-	<p class="hint">Give a client this and its own username and password; it finds calendars and
-		address books by itself.
-		{{if not .HasBaseURL}} Set <code>EDAV_BASE_URL</code> so this page shows the address your
-		clients actually reach, rather than the one this request happened to arrive on.{{end}}</p>
+	{{if not .HasBaseURL}}<p class="hint">Set <code>EDAV_BASE_URL</code> to the address clients reach.</p>{{end}}
 </div>
 
 <h2>Per client</h2>
@@ -35,8 +28,7 @@ over an untrusted network.</span></p>
 			<li>Add CalDAV (or CardDAV) Account</li>
 			<li>Server: <code>{{.Host}}</code></li>
 		</ol>
-		<p class="hint">Leave the path off. Discovery goes through <code>/.well-known/caldav</code>,
-			which this server answers without asking for credentials first.</p>
+
 	</div>
 
 	<div class="card client">
@@ -47,7 +39,7 @@ over an untrusted network.</span></p>
 			<li>Base URL: the server address above</li>
 			<li>Enter the account's username and password</li>
 		</ol>
-		<p class="hint">One login finds both calendars and address books.</p>
+
 	</div>
 
 	<div class="card client">
@@ -58,7 +50,7 @@ over an untrusted network.</span></p>
 			<li>Location: the calendar home below</li>
 			<li>Address book → New CardDAV Address Book</li>
 		</ol>
-		<p class="hint">Thunderbird wants the home set rather than the server root.</p>
+
 	</div>
 
 	<div class="card client">
@@ -69,7 +61,7 @@ over an untrusted network.</span></p>
 			<li>Use a home set address below</li>
 			<li>Pick a collection from the list it offers</li>
 		</ol>
-		<p class="hint">For clients that want a full URL rather than discovering one.</p>
+
 	</div>
 </div>
 
@@ -96,7 +88,7 @@ over an untrusted network.</span></p>
 		<dd><div class="copy"><code id="ab-home">{{.BaseURL}}{{.AddressBookHomePath}}</code>
 			<button type="button" class="small js-only" data-copy="ab-home">Copy</button></div></dd>
 	</dl>
-	<p class="hint">Every user has their own tree; substitute the username for another account.</p>
+
 </div>
 
 <h2>Status</h2>

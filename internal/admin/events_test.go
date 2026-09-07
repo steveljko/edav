@@ -76,7 +76,7 @@ func TestEventListing(t *testing.T) {
 	h.storeEvent(c, "standup.ics", phoneEvent)
 
 	got := body(t, h.get("/admin/collections/"+itoa(c.ID)))
-	for _, want := range []string{"Standup", "Add an event", "repeats", "1 Apr 2026"} {
+	for _, want := range []string{"Standup", "New event", "repeats", "1 Apr 2026"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("calendar page does not show %q:\n%s", want, got)
 		}
@@ -92,7 +92,7 @@ func TestEventRoutesRejectAddressBooks(t *testing.T) {
 	if resp := h.get("/admin/collections/" + itoa(book.ID) + "/events/new"); resp.StatusCode != http.StatusNotFound {
 		t.Errorf("status = %d, want 404", resp.StatusCode)
 	}
-	if got := body(t, h.get("/admin/collections/"+itoa(book.ID))); strings.Contains(got, "Add an event") {
+	if got := body(t, h.get("/admin/collections/"+itoa(book.ID))); strings.Contains(got, "New event") {
 		t.Error("an address book page offers event creation")
 	}
 }
@@ -307,8 +307,8 @@ func TestRecurringEventExplainsItsRepeat(t *testing.T) {
 	if !strings.Contains(got, "Every week, 6 times") {
 		t.Errorf("the repeat is not described:\n%s", got)
 	}
-	if !strings.Contains(got, "not editable here") {
-		t.Error("the page does not say the repeat cannot be changed here")
+	if !strings.Contains(got, "Change the repeat in a") {
+		t.Error("the page does not say where the repeat can be changed")
 	}
 	if strings.Contains(got, `<select id="recurrence"`) {
 		t.Error("a repeat menu is offered for an event that already repeats")
